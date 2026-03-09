@@ -22,15 +22,16 @@ const networkColors: Record<string, string> = {
   none: "from-primary to-accent",
 };
 
-const cardColors = [
-  "from-[#1a1f71] to-[#2d4aa8]",
-  "from-[#00a651] to-[#4fc978]",
-  "from-[#0066b3] to-[#00a0e3]",
-  "from-violet-600 to-purple-500",
-  "from-emerald-600 to-teal-500",
-  "from-amber-500 to-orange-400",
-  "from-pink-500 to-rose-400",
-  "from-indigo-500 to-blue-400",
+// 8 цветовых вариантов для карт
+const cardColorGradients = [
+  { from: "#ffffff", to: "#1e293b", isNoColor: true }, // Безцветный (день/ночь)
+  { from: "#64748b", to: "#94a3b8" }, // Серый
+  { from: "#1a1f71", to: "#2d4aa8" }, // Синий (Visa)
+  { from: "#eb001b", to: "#f79e1b" }, // Красно-оранжевый (Mastercard)
+  { from: "#00a651", to: "#4fc978" }, // Зеленый (Humo)
+  { from: "#0066b3", to: "#00a0e3" }, // Голубой (UzCard)
+  { from: "#7c3aed", to: "#a855f7" }, // Фиолетовый
+  { from: "#059669", to: "#10b981" }, // Эмеральд
 ];
 
 const EditAccountModal = ({ account, open, onOpenChange, onSave }: EditAccountModalProps) => {
@@ -51,11 +52,10 @@ const EditAccountModal = ({ account, open, onOpenChange, onSave }: EditAccountMo
     if (formData.id && formData.name) {
       // Generate new card number and color if type changed to card
       let finalData = { ...formData };
-      if (formData.type === "card" && !formData.cardNumber) {
+      if (formData.type === "card" && !formData.cardNumberFull) {
         const network = formData.cardNetwork || "visa";
         finalData.color = networkColors[network] || networkColors.none;
-        finalData.cardNumber = `${network === "humo" ? "9860" : network === "uzcard" ? "8600" : "4276"} •••• •••• ${Math.floor(1000 + Math.random() * 9000)}`;
-        finalData.cardNumberFull = `${network === "humo" ? "9860" : network === "uzcard" ? "8600" : "4276"} ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)}`;
+        finalData.cardNumberFull = `${network === "humo" ? "9860" : network === "uzcard" ? "8600" : "4276"}${Math.floor(1000 + Math.random() * 9000)}${Math.floor(1000 + Math.random() * 9000)}${Math.floor(1000 + Math.random() * 9000)}`;
         finalData.expiryDate = "12/29";
       }
       onSave(finalData as Account);
@@ -117,6 +117,49 @@ const EditAccountModal = ({ account, open, onOpenChange, onSave }: EditAccountMo
                     {n === "uzcard" ? "UzCard" : n === "humo" ? "HUMO" : n.charAt(0).toUpperCase() + n.slice(1)}
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Card Style - only for card type */}
+          {isCardType && (
+            <div>
+              <label className="text-xs font-medium text-slate-700 dark:text-white/70 mb-1 block">Card Style</label>
+              <div className="flex flex-wrap gap-2 justify-start">
+                {cardColorGradients.map((gradient, index) => {
+                  const colorKey = `from-${gradient.from} to-${gradient.to}`;
+                  const isNoColor = gradient.isNoColor;
+                  const isSelected = formData.color === colorKey;
+                  
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => handleChange("color", colorKey)}
+                      className={`flex-shrink-0 w-8 h-8 rounded-lg transition-all duration-200 hover:scale-110 ${
+                        isSelected 
+                          ? "ring-2 ring-primary scale-110" 
+                          : "opacity-70 hover:opacity-100"
+                      }`}
+                      style={{
+                        background: isNoColor
+                          ? `linear-gradient(135deg, #ffffff 50%, #1e293b 50%)`
+                          : `linear-gradient(135deg, ${gradient.from}, ${gradient.to})`
+                      }}
+                    >
+                      {isSelected && !isNoColor && (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="w-2.5 h-2.5 bg-white rounded-full animate-pulse" />
+                        </div>
+                      )}
+                      {isSelected && isNoColor && (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="w-2.5 h-2.5 bg-slate-900 rounded-full animate-pulse" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

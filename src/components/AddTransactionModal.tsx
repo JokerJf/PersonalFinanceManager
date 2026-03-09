@@ -17,6 +17,22 @@ const categories = {
   income: ["Salary", "Freelance", "Investment", "Gift", "Other"],
 };
 
+// Map categories to icons
+const categoryIcons: Record<string, string> = {
+  "Food & Dining": "utensils-crossed",
+  "Transport": "car",
+  "Shopping": "shopping-bag",
+  "Entertainment": "film",
+  "Health": "heart-pulse",
+  "Housing": "home",
+  "Salary": "briefcase",
+  "Freelance": "laptop",
+  "Investment": "trending-up",
+  "Gift": "gift",
+  "Transfer": "arrow-left-right",
+  "Other": "circle-dot",
+};
+
 interface AddTransactionModalProps {
   onClose?: () => void;
   defaultType?: TxType;
@@ -41,7 +57,7 @@ function AddTransactionModal({ onClose, defaultType, modalOpen, openChange, edit
 
   const isEditMode = !!editTransaction;
 
-  const { accounts, transactions, setTransactions, exchangeRates, updateTransaction } = useApp();
+  const { accounts, setAccounts, transactions, setTransactions, exchangeRates, updateTransaction } = useApp();
   const [txType, setTxType] = useState<TxType>(defaultType || editTransaction?.type || "expense");
   const [amount, setAmount] = useState(editTransaction?.amount?.toString() || "");
   const [toAmount, setToAmount] = useState(editTransaction?.toAmount?.toString() || "");
@@ -49,7 +65,7 @@ function AddTransactionModal({ onClose, defaultType, modalOpen, openChange, edit
   const [description, setDescription] = useState(editTransaction?.description || "");
   const [fromAccountId, setFromAccountId] = useState(editTransaction?.accountId || accounts[0]?.id || "");
   const [toAccountId, setToAccountId] = useState(editTransaction?.toAccountId || accounts[1]?.id || "");
-  const [date, setDate] = useState(editTransaction?.date ? editTransaction.date.slice(0, 16) : formatLocalDateTime(new Date()));
+  const [date, setDate] = useState(editTransaction?.date ? (editTransaction.date.length > 16 ? editTransaction.date.slice(0, 16) : editTransaction.date) : formatLocalDateTime(new Date()));
   const [note, setNote] = useState(editTransaction?.note || "");
   const [activeDetailTab, setActiveDetailTab] = useState<DetailTab>("date");
 
@@ -87,36 +103,118 @@ function AddTransactionModal({ onClose, defaultType, modalOpen, openChange, edit
   const handleSubmit = () => {
     if (!amount || (!category && txType !== "transfer")) return;
     
+    const amountNum = parseFloat(amount);
     let finalToAmount: number | undefined = undefined;
+    
     if (txType === "transfer" && fromAccount && toAccount && amount) {
       if (fromAccount.currency !== toAccount.currency) {
-        finalToAmount = toAmount ? parseFloat(toAmount) : parseFloat(amount) * getExchangeRate(fromAccount.currency, toAccount.currency);
+        finalToAmount = toAmount ? parseFloat(toAmount) : amountNum * getExchangeRate(fromAccount.currency, toAccount.currency);
       } else {
-        finalToAmount = parseFloat(amount);
+        finalToAmount = amountNum;
       }
+    }
+
+    // If editing, update existing transaction instead of creating new one
+    if (isEditMode && editTransaction) {
+      // Restore original account balance first
+      const restoreOriginalBalance = () => {
+        const newAccounts = accounts.map(account => {
+          // Reverse the original transaction effect
+          if (account.id === editTransaction.accountId) {
+            if (editTransaction.type === "expense" || editTransaction.type === "transfer") {
+              return { ...account, balance: account.balance + editTransaction.amount };
+            }
+            if (editTransaction.type === "income") {
+              return { ...account, balance: account.balance - editTransaction.amount };
+            }
+          }
+          // Reverse transfer to account
+          if (editTransaction.type === "transfer" && account.id === editTransaction.toAccountId) {
+            return { ...account, balance: account.balance - (editTransaction.toAmount || editTransaction.amount) };
+          }
+          return account;
+        });
+        setAccounts(newAccounts);
+      };
+      
+      restoreOriginalBalance();
+
+      const updatedTx: Transaction = {
+        ...editTransaction,
+        type: txType,
+        amount: amountNum,
+        currency: fromAccount?.currency || "USD",
+        category: txType === "transfer" ? "Transfer" : category,
+        description: description || (txType === "transfer" ? `To ${toAccount?.name || ""}` : ""),
+        accountId: fromAccountId,
+        accountName: fromAccount?.name || "",
+        ...(txType === "transfer" ? {
+          toAccountId,
+          toAccountName: toAccount?.name || "",
+          toCurrency: toAccount?.currency,
+          toAmount: finalToAmount,
+        } : {}),
+        date,
+        icon: editTransaction?.icon || (txType === "expense" ? "💸" : txType === "income" ? "💰" : "🔄"),
+        note: note || undefined,
+      };
+      
+      // Update transactions array
+      const updatedTransactions = transactions.map(t => 
+        t.id === editTransaction.id ? updatedTx : t
+      );
+      setTransactions(updatedTransactions);
+      toast({ title: "Transaction Updated" });
+      handleClose();
+      if (onClose) onClose();
+      return;
     }
 
     const tx = {
       id: `tx-${Date.now()}`,
       type: txType,
-      amount: parseFloat(amount),
+      amount: amountNum,
       currency: fromAccount?.currency || "USD",
       category: txType === "transfer" ? "Transfer" : category,
-      description: description || category,
+      description: description || (txType === "transfer" ? `To ${toAccount?.name || ""}` : ""),
       accountId: fromAccountId,
       accountName: fromAccount?.name || "",
-      ...(txType === "transfer" && {
+      ...(txType === "transfer" ? {
         toAccountId,
         toAccountName: toAccount?.name || "",
         toCurrency: toAccount?.currency,
         toAmount: finalToAmount,
-      }),
+      } : {}),
       date,
-      icon: txType === "expense" ? "💸" : txType === "income" ? "💰" : "🔄",
+      icon: categoryIcons[txType === "transfer" ? "Transfer" : category] || (txType === "expense" ? "💸" : txType === "income" ? "💰" : "🔄"),
       note: note || undefined,
     };
+    
+    // Update account balances
+    const updateAccountBalances = () => {
+      const newAccounts = accounts.map(account => {
+        // Update "from" account
+        if (account.id === fromAccountId) {
+          if (txType === "expense" || txType === "transfer") {
+            return { ...account, balance: account.balance - amountNum };
+          }
+        }
+        // Update "to" account for transfers
+        if (txType === "transfer" && account.id === toAccountId) {
+          return { ...account, balance: account.balance + (finalToAmount || amountNum) };
+        }
+        // Update account for income
+        if (txType === "income" && account.id === fromAccountId) {
+          return { ...account, balance: account.balance + amountNum };
+        }
+        return account;
+      });
+      setAccounts(newAccounts);
+    };
+    
+    updateAccountBalances();
     setTransactions([tx, ...transactions]);
-    toast({ title: isEditMode ? "Transaction Updated" : "Transaction Added" });
+    toast({ title: "Transaction Added" });
     handleClose();
     if (onClose) onClose();
   };
@@ -167,7 +265,7 @@ function AddTransactionModal({ onClose, defaultType, modalOpen, openChange, edit
                   <select 
                     value={category} 
                     onChange={e => setCategory(e.target.value)} 
-                    className="w-full input-bg text-slate-900 dark:text-white rounded-2xl py-2.5 px-3 text-sm appearance-none pr-8 shadow-sm"
+                    className="w-full btn-secondary text-slate-900 dark:text-white rounded-2xl py-2.5 px-3 text-sm appearance-none pr-8"
                   >
                     <option value="">Select</option>
                     {categories[txType].map(c => <option key={c} value={c}>{c}</option>)}
@@ -187,7 +285,7 @@ function AddTransactionModal({ onClose, defaultType, modalOpen, openChange, edit
                   <select 
                     value={fromAccountId} 
                     onChange={e => setFromAccountId(e.target.value)} 
-                    className="w-full input-bg text-slate-900 dark:text-white rounded-2xl py-2.5 px-3 text-sm appearance-none pr-8 shadow-sm"
+                    className="w-full btn-secondary text-slate-900 dark:text-white rounded-2xl py-2.5 px-3 text-sm appearance-none pr-8"
                   >
                     {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
@@ -213,7 +311,7 @@ function AddTransactionModal({ onClose, defaultType, modalOpen, openChange, edit
                     <select 
                       value={fromAccountId} 
                       onChange={e => setFromAccountId(e.target.value)} 
-                      className="w-full input-bg text-slate-900 dark:text-white rounded-2xl py-2.5 px-3 text-sm appearance-none pr-8 shadow-sm"
+                      className="w-full btn-secondary text-slate-900 dark:text-white rounded-2xl py-2.5 px-3 text-sm appearance-none pr-8"
                     >
                       {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                     </select>
@@ -232,7 +330,7 @@ function AddTransactionModal({ onClose, defaultType, modalOpen, openChange, edit
                     <select 
                       value={toAccountId} 
                       onChange={e => setToAccountId(e.target.value)} 
-                      className="w-full input-bg text-slate-900 dark:text-white rounded-2xl py-2.5 px-3 text-sm appearance-none pr-8 shadow-sm"
+                      className="w-full btn-secondary text-slate-900 dark:text-white rounded-2xl py-2.5 px-3 text-sm appearance-none pr-8"
                     >
                       {accounts.filter(a => a.id !== fromAccountId).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                     </select>

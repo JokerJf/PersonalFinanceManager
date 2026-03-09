@@ -1,22 +1,140 @@
 import { useState, useRef, useEffect } from "react";
-import { useApp } from "@/context/AppContext";
+import { useApp, Account } from "@/context/AppContext";
 import WorkspaceSwitcher from "@/components/WorkspaceSwitcher";
 import NotificationsSheet from "@/components/NotificationsSheet";
 import CardView from "@/components/CardView";
 import CategoryIcon from "@/components/CategoryIcon";
-import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, CreditCard, Banknote, Landmark, Sparkles, TrendingUp, Plus, DollarSign, MessageCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, CreditCard, Banknote, Landmark, Sparkles, TrendingUp, Plus, DollarSign, MessageCircle, Repeat } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const iconMap = { card: CreditCard, cash: Banknote, bank: Landmark };
 
+// Get currencies that can be converted TO from account currencies
+const getConvertibleCurrencies = (
+  exchangeRates: { from: string; to: string; rate: number }[],
+  accountCurrencies: string[],
+  baseCurrency: string
+) => {
+  const currencies = new Set<string>();
+  
+  // If base is "all", get all currencies that any account can convert to
+  if (baseCurrency === "all") {
+    // Add all unique account currencies
+    accountCurrencies.forEach(c => currencies.add(c));
+    // Add all currencies that account currencies can convert to
+    exchangeRates.forEach(r => {
+      if (accountCurrencies.includes(r.from)) {
+        currencies.add(r.to);
+      }
+    });
+  } else {
+    // If specific currency selected, only show that currency and what it can convert to
+    currencies.add(baseCurrency);
+    exchangeRates.forEach(r => {
+      if (r.from === baseCurrency) {
+        currencies.add(r.to);
+      }
+    });
+  }
+  
+  return Array.from(currencies).sort();
+};
+
 const Dashboard = () => {
-  const { totalBalance, accounts, transactions, workspace, familyMembers, userName, currency, aiInsightEnabled, setSelectedCardId, selectedCurrency, setSelectedTransactionId, setAddTransactionModalOpen, setAddTransactionDefaultType } = useApp();
+  const { totalBalance, accounts, transactions, workspace, familyMembers, userName, currency, aiInsightEnabled, setSelectedCardId, selectedCurrency, setSelectedTransactionId, setAddTransactionModalOpen, setAddTransactionDefaultType, balanceCurrency, exchangeRates, isLoadingExchangeRates, isLoadingData } = useApp();
   const navigate = useNavigate();
   const [modalType, setModalType] = useState<"expense" | "income" | "transfer">("expense");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeCard, setActiveCard] = useState(0);
+  const [revealedCards, setRevealedCards] = useState<Set<string>>(new Set());
+  const [copiedCardId, setCopiedCardId] = useState<string | null>(null);
+  
+  // Get unique currencies from accounts
+  const accountCurrencies = [...new Set(accounts.map(a => a.currency))];
+  
+  // Get available currencies based on account currencies and balanceCurrency setting
+  const availableCurrencies = getConvertibleCurrencies(exchangeRates, accountCurrencies, balanceCurrency);
+  
+  // Display currency for Total Balance (for conversion when clicking)
+  const [displayCurrency, setDisplayCurrency] = useState(balanceCurrency === "all" ? "USD" : balanceCurrency);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [displayBalance, setDisplayBalance] = useState(0);
 
   const cards = accounts.filter(a => a.type === "card");
+
+  // Copy card number to clipboard
+  const handleCopyCardNumber = (cardNumber: string, cardId: string) => {
+    if (cardNumber) {
+      navigator.clipboard.writeText(cardNumber);
+      setCopiedCardId(cardId);
+      setTimeout(() => setCopiedCardId(null), 2000);
+    }
+  };
+  const toggleCardReveal = (id: string) => {
+    setRevealedCards(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  // Calculate total balance based on balanceCurrency setting
+  // If balanceCurrency is "all" - include all accounts with includedInBalance = true
+  // If balanceCurrency is specific (USD, UZS, etc.) - only include accounts with that currency
+  const filteredAccounts = accounts.filter(a => 
+    a.includedInBalance !== false && 
+    (balanceCurrency === "all" || a.currency === balanceCurrency)
+  );
+
+  // Calculate total in original currencies (before conversion)
+  const originalTotal = filteredAccounts.reduce((sum, a) => sum + a.balance, 0);
+
+  // Calculate total balance in display currency (for conversion when clicking)
+  useEffect(() => {
+    let total = 0;
+    
+    filteredAccounts.forEach(acc => {
+      // Find rate from account currency to display currency
+      const rateObj = exchangeRates.find(r => r.from === acc.currency && r.to === displayCurrency);
+      // If no direct rate, try USD as intermediate
+      let rate = rateObj?.rate;
+      if (!rate && acc.currency !== displayCurrency) {
+        const toUSD = exchangeRates.find(r => r.from === acc.currency && r.to === "USD");
+        const fromUSD = exchangeRates.find(r => r.from === "USD" && r.to === displayCurrency);
+        if (toUSD && fromUSD) {
+          rate = toUSD.rate * fromUSD.rate;
+        }
+      }
+      if (!rate) rate = 1; // Fallback
+      total += acc.balance * rate;
+    });
+    
+    // Animate the balance change
+    if (isAnimating) {
+      setDisplayBalance(total);
+      setTimeout(() => setIsAnimating(false), 300);
+    } else {
+      setDisplayBalance(total);
+    }
+  }, [filteredAccounts, displayCurrency, isAnimating]);
+
+  // Update display currency when balanceCurrency changes in settings
+  useEffect(() => {
+    if (balanceCurrency === "all") {
+      setDisplayCurrency("USD");
+    } else {
+      setDisplayCurrency(balanceCurrency);
+    }
+  }, [balanceCurrency]);
+
+  // Cycle through currencies when clicking on Total Balance
+  const handleCurrencySwitch = () => {
+    setIsAnimating(true);
+    const currentIndex = availableCurrencies.indexOf(displayCurrency);
+    const nextIndex = (currentIndex + 1) % availableCurrencies.length;
+    setDisplayCurrency(availableCurrencies[nextIndex]);
+  };
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -46,13 +164,20 @@ const Dashboard = () => {
     setSelectedCardId(id);
   };
 
+  const handleCopyNumber = (acc: Account) => {
+    if (acc.cardNumberFull) {
+      handleCopyCardNumber(acc.cardNumberFull, acc.id);
+    }
+  };
+
   const handleTransactionClick = (id: string) => {
     setSelectedTransactionId(id);
   };
 
-  const currencySymbol = selectedCurrency === "UZS" ? "" : selectedCurrency === "EUR" ? "€" : selectedCurrency === "GBP" ? "£" : "$";
+  const currencySymbol = displayCurrency === "UZS" ? "" : displayCurrency === "EUR" ? "€" : displayCurrency === "GBP" ? "£" : displayCurrency === "RUB" ? "₽" : "$";
+  
   const formatBalance = (val: number) => {
-    if (selectedCurrency === "UZS") return `${val.toLocaleString("en-US")} сум`;
+    if (displayCurrency === "UZS") return `${val.toLocaleString("en-US")} сум`;
     return `${currencySymbol}${val.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
   };
 
@@ -77,7 +202,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <WorkspaceSwitcher />
+      {isLoadingData ? <Skeleton className="h-10 w-full rounded-xl" /> : <WorkspaceSwitcher />}
 
       {workspace === "family" && (
         <div className="flex gap-3 family-members">
@@ -93,7 +218,20 @@ const Dashboard = () => {
       )}
 
       {/* Total Balance */}
-      <div className="relative overflow-hidden rounded-3xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-5 sm:p-6 shadow-2xl">
+      {isLoadingData ? (
+        <div className="relative overflow-hidden rounded-3xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-5 sm:p-6 shadow-2xl">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <Skeleton className="h-10 w-10 rounded-full" />
+            <Skeleton className="h-6 w-20 rounded-full" />
+          </div>
+          <Skeleton className="h-10 w-40 mb-2" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+      ) : (
+      <div 
+        className="relative overflow-hidden rounded-3xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-5 sm:p-6 shadow-2xl cursor-pointer group" 
+        onClick={handleCurrencySwitch}
+      >
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-32 h-32 sm:w-48 sm:h-48 rounded-full bg-black/5 -translate-y-1/2 translate-x-1/3" />
         <div className="absolute bottom-0 left-0 w-24 h-24 sm:w-36 sm:h-36 rounded-full bg-black/5 translate-y-1/2 -translate-x-1/3" />
@@ -102,7 +240,7 @@ const Dashboard = () => {
         <div className="relative">
           <div className="flex items-center justify-between mb-4 sm:mb-6">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/20 dark:bg-black/20 flex items-center justify-center">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/20 dark:bg-black/20 flex items-center justify-center group-hover:scale-110 transition-transform">
                 <TrendingUp size={20} className="text-slate-900 dark:text-white" />
               </div>
               <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-white/80">Total Balance</p>
@@ -113,26 +251,49 @@ const Dashboard = () => {
             </div>
           </div>
           
-          <p className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight mb-1 sm:mb-2">
-            {formatBalance(totalBalance)}
+          <p className={`text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight mb-1 sm:mb-2 transition-all duration-300 ${isAnimating ? 'scale-105 opacity-50' : 'scale-100 opacity-100'}`}>
+            {isLoadingExchangeRates ? (
+              <span className="text-muted-foreground">Loading...</span>
+            ) : (
+              formatBalance(displayBalance)
+            )}
           </p>
           
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-white/40" />
-              <span className="text-[10px] sm:text-xs text-slate-500 dark:text-white/70 font-medium">{currency}</span>
+              <span className="text-[10px] sm:text-xs text-slate-500 dark:text-white/70 font-medium">{displayCurrency}</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-white/40" />
-              <span className="text-[10px] sm:text-xs text-slate-500 dark:text-white/70 font-medium">
-                {accounts.filter(a => a.currency === selectedCurrency && a.includedInBalance !== false).length} accounts
-              </span>
-            </div>
+            {balanceCurrency === "all" ? (
+              <div className="flex items-center gap-1.5 group-hover:gap-2 transition-all">
+                <Repeat size={12} className="text-slate-400 dark:text-white/40" />
+                <span className="text-[10px] sm:text-xs text-slate-500 dark:text-white/70 font-medium">Tap to switch</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-white/40" />
+                <span className="text-[10px] sm:text-xs text-slate-500 dark:text-white/70 font-medium">
+                  {filteredAccounts.length} accounts
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
+      )}
 
       {/* Cards */}
+      {isLoadingData ? (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <Skeleton className="h-6 w-24" />
+            <Skeleton className="h-4 w-16" />
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-6 -mx-4 px-4">
+            <Skeleton className="h-48 w-[calc(100vw-2rem)] max-w-[400px] rounded-3xl flex-shrink-0" />
+          </div>
+        </div>
+      ) : (
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="section-title">My Cards</h2>
@@ -145,7 +306,13 @@ const Dashboard = () => {
               onClick={() => handleCardClick(acc.id)}
               className="flex-shrink-0 w-[calc(100vw-2rem)] max-w-[400px] snap-center cursor-pointer"
             >
-              <CardView account={acc} />
+              <CardView 
+                account={acc} 
+                revealed={revealedCards.has(acc.id)}
+                onToggleReveal={() => toggleCardReveal(acc.id)}
+                onCopy={() => handleCopyNumber(acc)}
+                copied={copiedCardId === acc.id}
+              />
             </div>
           ))}
         </div>
@@ -163,8 +330,19 @@ const Dashboard = () => {
           </div>
         )}
       </div>
-
+      )}
       {/* Quick Actions */}
+      {isLoadingData ? (
+        <div>
+          <Skeleton className="h-6 w-32 mb-3" />
+          <div className="grid grid-cols-4 gap-2">
+            <Skeleton className="h-16 rounded-2xl" />
+            <Skeleton className="h-16 rounded-2xl" />
+            <Skeleton className="h-16 rounded-2xl" />
+            <Skeleton className="h-16 rounded-2xl" />
+          </div>
+        </div>
+      ) : (
       <div>
         <h2 className="section-title mb-2 sm:mb-3">Quick Actions</h2>
         <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
@@ -176,8 +354,15 @@ const Dashboard = () => {
           ))}
         </div>
       </div>
+      )}
 
       {/* Exchange Rate + AI buttons row */}
+      {isLoadingData ? (
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          <Skeleton className="h-20 rounded-2xl" />
+          <Skeleton className="h-20 rounded-2xl" />
+        </div>
+      ) : (
       <div className="grid grid-cols-2 gap-2 sm:gap-3 exchange-ai-buttons">
         <button onClick={() => navigate("/exchange")} className="rounded-2xl border border-border/30 flex items-center gap-2 sm:gap-3 py-3 cursor-pointer active:scale-[0.98] transition-transform px-4 dark:bg-[rgba(28,32,44,0.3)] bg-white shadow-sm">
           <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -198,9 +383,10 @@ const Dashboard = () => {
           </div>
         </button>
       </div>
+      )}
 
       {/* AI Insight */}
-      {aiInsightEnabled && (
+      {aiInsightEnabled && !isLoadingData && (
         <div className="fintech-card ai-insight-card bg-gradient-to-br from-card to-warning/5 dark:from-[rgba(28,32,44,0.3)] dark:to-warning/10">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-2xl bg-warning/10 dark:bg-warning/20 flex items-center justify-center flex-shrink-0">
@@ -215,6 +401,20 @@ const Dashboard = () => {
       )}
 
       {/* Recent Transactions */}
+      {isLoadingData ? (
+        <div className="recent-transactions">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-16" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-16 w-full rounded-2xl" />
+            <Skeleton className="h-16 w-full rounded-2xl" />
+            <Skeleton className="h-16 w-full rounded-2xl" />
+            <Skeleton className="h-16 w-full rounded-2xl" />
+          </div>
+        </div>
+      ) : (
       <div className="recent-transactions">
         <div className="flex items-center justify-between mb-2 sm:mb-3">
           <h2 className="section-title">Recent Transactions</h2>
@@ -240,6 +440,7 @@ const Dashboard = () => {
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 };

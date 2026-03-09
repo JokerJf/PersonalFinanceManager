@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Eye, EyeOff, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 
@@ -32,13 +32,16 @@ const GlobalBottomSheet = () => {
     setAddTransactionModalOpen,
     addTransactionDefaultType,
     updateTransaction,
-    deleteTransaction
+    deleteTransaction,
+    deleteAccount
   } = useApp();
 
   const [revealedCards, setRevealedCards] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editTransactionModalOpen, setEditTransactionModalOpen] = useState(false);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [noteExpanded, setNoteExpanded] = useState(false);
 
   const selectedCard = selectedCardId ? accounts.find(a => a.id === selectedCardId) : null;
   const selectedTx = selectedTransactionId ? transactions.find(t => t.id === selectedTransactionId) : null;
@@ -115,26 +118,22 @@ const GlobalBottomSheet = () => {
 
               {/* Header with Actions */}
               <div className="px-4 pb-4 flex items-center justify-between shrink-0">
-                {selectedCard.type === "card" ? (
-                  <button 
-                    onClick={() => toggleAccountInBalance(selectedCard.id)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl transition-colors shadow-sm ${selectedCard.includedInBalance !== false ? "bg-warning/20 text-warning" : "btn-secondary"}`}
-                  >
-                    {selectedCard.includedInBalance !== false ? (
-                      <>
-                        <Eye size={18} />
-                        <span className="text-sm font-semibold">In Balance</span>
-                      </>
-                    ) : (
-                      <>
-                        <EyeOff size={18} />
-                        <span className="text-sm font-semibold">Off Balance</span>
-                      </>
-                    )}
-                  </button>
-                ) : (
-                  <div />
-                )}
+                <button 
+                  onClick={() => toggleAccountInBalance(selectedCard.id)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl transition-colors shadow-sm ${selectedCard.includedInBalance !== false ? "bg-warning/20 text-warning" : "btn-secondary"}`}
+                >
+                  {selectedCard.includedInBalance !== false ? (
+                    <>
+                      <Eye size={18} />
+                      <span className="text-sm font-semibold">In Balance</span>
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff size={18} />
+                      <span className="text-sm font-semibold">Off Balance</span>
+                    </>
+                  )}
+                </button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="ml-3 w-12 h-12 rounded-2xl btn-secondary flex items-center justify-center hover:bg-gray-200 dark:hover:bg-[#2a2f3c4d]/80 transition-colors text-slate-900 dark:text-white shadow-sm">
@@ -151,7 +150,11 @@ const GlobalBottomSheet = () => {
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       className="flex items-center gap-3 text-destructive focus:bg-red-100 dark:focus:bg-red-900/30 cursor-pointer"
-                      onClick={() => toast({ title: "Delete", description: "Delete functionality coming soon." })}
+                      onClick={() => {
+                        deleteAccount(selectedCard.id);
+                        setSelectedCardId(null);
+                        toast({ title: "Deleted", description: "Account has been deleted." });
+                      }}
                     >
                       <Trash2 size={16} />
                       <span>Delete Account</span>
@@ -196,8 +199,8 @@ const GlobalBottomSheet = () => {
                   <div className="w-12 h-12 rounded-2xl card-bg flex items-center justify-center">
                     <CategoryIcon icon={selectedTx.icon} className="w-6 h-6" size={20} />
                   </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-base text-slate-900 dark:text-white">{selectedTx.description}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-base text-slate-900 dark:text-white truncate">{selectedTx.category}</p>
                     <p className="text-xs text-slate-500 dark:text-white/60">{selectedTx.accountName}</p>
                   </div>
                   <div className="text-right">
@@ -214,7 +217,7 @@ const GlobalBottomSheet = () => {
               </div>
 
               {/* Details */}
-              <div className="flex-1 min-h-0 overflow-y-auto px-5 space-y-0">
+              <div className="flex-1 min-h-0 overflow-y-auto px-5 space-y-0 pb-5">
                 <div className="flex justify-between items-center py-3 border-b border-gray-200 dark:border-slate-700">
                   <span className="text-slate-500 text-sm">Type</span>
                   <span className="font-medium text-slate-700 dark:text-white capitalize">{selectedTx.type}</span>
@@ -239,14 +242,58 @@ const GlobalBottomSheet = () => {
                 </div>
                 {selectedTx.description && (
                   <div className="py-3">
-                    <p className="text-slate-500 text-sm mb-2">Description</p>
-                    <p className="text-sm card-bg rounded-2xl p-3 text-slate-700 dark:text-white shadow-sm">{selectedTx.description}</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-slate-500 text-sm">Description</p>
+                      {selectedTx.description.length > 30 && (
+                        <button 
+                          onClick={() => setDescriptionExpanded(!descriptionExpanded)}
+                          className="text-primary text-xs font-medium flex items-center gap-1"
+                        >
+                          {descriptionExpanded ? (
+                            <><ChevronUp size={14} /> Collapse</>
+                          ) : (
+                            <><ChevronDown size={14} /> Expand</>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    {descriptionExpanded ? (
+                      <p className="text-sm card-bg rounded-2xl p-3 text-slate-700 dark:text-white shadow-sm whitespace-pre-wrap break-words">
+                        {selectedTx.description}
+                      </p>
+                    ) : (
+                      <p className="text-sm card-bg rounded-2xl p-3 text-slate-700 dark:text-white shadow-sm truncate">
+                        {selectedTx.description}
+                      </p>
+                    )}
                   </div>
                 )}
                 {selectedTx.note && (
                   <div className="py-3">
-                    <p className="text-slate-500 text-sm mb-2">Note</p>
-                    <p className="text-sm card-bg rounded-2xl p-3 text-slate-700 dark:text-white shadow-sm">{selectedTx.note}</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-slate-500 text-sm">Note</p>
+                      {selectedTx.note.length > 30 && (
+                        <button 
+                          onClick={() => setNoteExpanded(!noteExpanded)}
+                          className="text-primary text-xs font-medium flex items-center gap-1"
+                        >
+                          {noteExpanded ? (
+                            <><ChevronUp size={14} /> Collapse</>
+                          ) : (
+                            <><ChevronDown size={14} /> Expand</>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    {noteExpanded ? (
+                      <p className="text-sm card-bg rounded-2xl p-3 text-slate-700 dark:text-white shadow-sm whitespace-pre-wrap break-words">
+                        {selectedTx.note}
+                      </p>
+                    ) : (
+                      <p className="text-sm card-bg rounded-2xl p-3 text-slate-700 dark:text-white shadow-sm truncate">
+                        {selectedTx.note}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

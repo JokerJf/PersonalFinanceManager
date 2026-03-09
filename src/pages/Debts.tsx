@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useApp, Debt } from "@/context/AppContext";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Check, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
@@ -7,7 +8,7 @@ import { toast } from "@/hooks/use-toast";
 type Tab = "owe" | "owed";
 
 const Debts = () => {
-  const { debts, setDebts } = useApp();
+  const { debts, setDebts, isLoadingData } = useApp();
   const [tab, setTab] = useState<Tab>("owe");
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState("");
@@ -49,30 +50,48 @@ const Debts = () => {
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Debts</h1>
-        <button onClick={() => setShowAdd(true)} className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground">
-          <Plus size={18} />
-        </button>
+        {!isLoadingData && (
+          <button onClick={() => setShowAdd(true)} className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground">
+            <Plus size={18} />
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
-      <div className="flex rounded-2xl p-1 gap-1 shadow-sm">
-        {([{ key: "owe" as Tab, label: "I Owe" }, { key: "owed" as Tab, label: "Owed to Me" }]).map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${tab === t.key ? "tab-active" : "tab-inactive"}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {isLoadingData ? (
+        <Skeleton className="h-12 w-full rounded-2xl" />
+      ) : (
+        <div className="flex rounded-2xl p-1 gap-1 shadow-sm">
+          {([{ key: "owe" as Tab, label: "I Owe" }, { key: "owed" as Tab, label: "Owed to Me" }]).map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${tab === t.key ? "tab-active" : "tab-inactive"}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Summary */}
-      <div className="fintech-card-elevated text-center py-4">
-        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">{tab === "owe" ? "Total I Owe" : "Total Owed to Me"}</p>
-        <p className={`text-2xl font-bold ${tab === "owe" ? "text-destructive" : "text-success"}`}>
-          ${totalOpen.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-        </p>
-      </div>
+      {isLoadingData ? (
+        <Skeleton className="h-24 w-full rounded-3xl" />
+      ) : (
+        <div className="fintech-card-elevated text-center py-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">{tab === "owe" ? "Total I Owe" : "Total Owed to Me"}</p>
+          <p className={`text-2xl font-bold ${tab === "owe" ? "text-destructive" : "text-success"}`}>
+            ${totalOpen.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+          </p>
+        </div>
+      )}
 
       {/* Open */}
-      {openDebts.length > 0 && (
+      {isLoadingData ? (
+        <div>
+          <Skeleton className="h-6 w-16 mb-3" />
+          <div className="space-y-2">
+            <Skeleton className="h-20 w-full rounded-2xl" />
+            <Skeleton className="h-20 w-full rounded-2xl" />
+          </div>
+        </div>
+      ) : openDebts.length > 0 && (
         <div>
           <h2 className="section-title mb-3">Open</h2>
           <div className="space-y-2">
@@ -86,7 +105,7 @@ const Debts = () => {
                   <p className="text-xs text-muted-foreground">{d.date}{d.description ? ` · ${d.description}` : ""}</p>
                 </div>
                 <p className={`text-sm font-semibold ${tab === "owe" ? "text-destructive" : "text-success"}`}>
-                  {d.currency === "UZS" ? `${d.amount.toLocaleString("en-US")} сум` : `$${d.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+                  {d.currency === "UZS" ? `${d.amount.toLocaleString("en-US")} сум` : `${d.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
                 </p>
                 <button onClick={() => markClosed(d.id)} className="p-1.5 rounded-lg bg-success/10 text-success">
                   <Check size={14} />
@@ -98,7 +117,7 @@ const Debts = () => {
       )}
 
       {/* Closed */}
-      {closedDebts.length > 0 && (
+      {!isLoadingData && closedDebts.length > 0 && (
         <div>
           <h2 className="section-title mb-3">Closed</h2>
           <div className="space-y-2">
@@ -116,7 +135,7 @@ const Debts = () => {
         </div>
       )}
 
-      {openDebts.length === 0 && closedDebts.length === 0 && (
+      {!isLoadingData && openDebts.length === 0 && closedDebts.length === 0 && (
         <div className="text-center py-10 text-muted-foreground">
           <p className="text-sm">No debts yet</p>
         </div>

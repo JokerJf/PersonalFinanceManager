@@ -1,6 +1,7 @@
-import { ChevronRight, User, DollarSign, Users, LogOut, Moon, Sun, Check, Sparkles, Trash2, UserMinus, AlertTriangle } from "lucide-react";
+import { ChevronRight, User, DollarSign, Wallet, Users, LogOut, Moon, Sun, Check, Sparkles, Trash2, UserMinus, AlertTriangle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
@@ -12,16 +13,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const currencies = ["USD", "UZS", "EUR", "RUB", "GBP"];
+const balanceCurrencies = ["all", "USD", "UZS", "EUR", "GBP", "RUB"];
 
 const SettingsPage = () => {
   const {
     userName, setUserName, userEmail, setUserEmail,
     selectedCurrency, setSelectedCurrency,
+    balanceCurrency, setBalanceCurrency,
     darkMode, toggleDarkMode,
     familyMembers, familyEnabled, setFamilyEnabled,
     aiInsightEnabled, setAiInsightEnabled,
     resetFamilyData, deleteFamily, removeFamilyMember, setFamilyMembers,
     accounts, toggleAccountInBalance,
+    isLoadingData,
   } = useApp();
 
   const [showProfile, setShowProfile] = useState(false);
@@ -35,7 +39,13 @@ const SettingsPage = () => {
 
   // Dropdown states
   const [currencyOpen, setCurrencyOpen] = useState(false);
+  const [balanceCurrencyOpen, setBalanceCurrencyOpen] = useState(false);
   const [familyOpen, setFamilyOpen] = useState(false);
+
+  const getBalanceCurrencyLabel = (c: string) => {
+    if (c === "all") return "All Currencies";
+    return c;
+  };
 
   const saveProfile = () => {
     setUserName(editName);
@@ -84,11 +94,12 @@ const SettingsPage = () => {
           isDropdown: false
         },
         { 
-          icon: DollarSign, 
-          label: "Currency", 
-          desc: selectedCurrency, 
+          icon: Wallet, 
+          label: "Balance Currency", 
+          desc: getBalanceCurrencyLabel(balanceCurrency), 
           action: () => {},
-          isDropdown: true
+          isDropdown: true,
+          dropdownType: "balance"
         },
       ],
     },
@@ -105,142 +116,200 @@ const SettingsPage = () => {
       <h1 className="text-xl font-bold">Settings</h1>
 
       {/* Profile Card */}
-      <div className="rounded-3xl border border-border/30 overflow-hidden card-container shadow-sm">
-        <div className="flex items-center gap-4 p-4 cursor-pointer hover:bg-secondary/50 transition-colors card-container">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground text-xl font-bold shrink-0">{userName.charAt(0)}</div>
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold truncate">{userName}</p>
-            <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
+      {isLoadingData ? (
+        <div className="rounded-3xl border border-border/30 overflow-hidden card-container shadow-sm">
+          <div className="flex items-center gap-4 p-4">
+            <Skeleton className="w-14 h-14 rounded-2xl" />
+            <div className="flex-1">
+              <Skeleton className="h-5 w-32 mb-2" />
+              <Skeleton className="h-4 w-48" />
+            </div>
           </div>
-          <ChevronRight size={16} className="text-muted-foreground shrink-0" />
         </div>
-      </div>
+      ) : (
+        <div className="rounded-3xl border border-border/30 overflow-hidden card-container shadow-sm">
+          <div className="flex items-center gap-4 p-4 cursor-pointer hover:bg-secondary/50 transition-colors card-container">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground text-xl font-bold shrink-0">{userName.charAt(0)}</div>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold truncate">{userName}</p>
+              <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
+            </div>
+            <ChevronRight size={16} className="text-muted-foreground shrink-0" />
+          </div>
+        </div>
+      )}
 
-      {sections.map((section) => (
-        <div key={section.title}>
-          <h2 className="section-title mb-3">{section.title}</h2>
-          <div className="rounded-3xl border border-border/30 overflow-hidden card-container shadow-sm">
-            {section.items.map((item, i) => (
-              <div key={item.label} className={`${i < section.items.length - 1 ? "border-b border-border/30" : ""}`}>
-                {item.isDropdown ? (
-                  <DropdownMenu open={currencyOpen} onOpenChange={setCurrencyOpen}>
-                    <DropdownMenuTrigger asChild>
-                      <button className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-secondary/50 transition-colors">
+      {isLoadingData ? (
+        <div className="space-y-6">
+          <div>
+            <Skeleton className="h-6 w-24 mb-3" />
+            <Skeleton className="h-24 w-full rounded-3xl" />
+          </div>
+          <div>
+            <Skeleton className="h-6 w-32 mb-3" />
+            <Skeleton className="h-16 w-full rounded-3xl" />
+          </div>
+        </div>
+      ) : (
+        <>
+          {sections.map((section) => (
+            <div key={section.title}>
+              <h2 className="section-title mb-3">{section.title}</h2>
+              <div className="rounded-3xl border border-border/30 overflow-hidden card-container shadow-sm">
+                {section.items.map((item, i) => (
+                  <div key={item.label} className={`${i < section.items.length - 1 ? "border-b border-border/30" : ""}`}>
+                    {item.isDropdown ? (
+                      <DropdownMenu open={item.dropdownType === "balance" ? balanceCurrencyOpen : currencyOpen} onOpenChange={item.dropdownType === "balance" ? setBalanceCurrencyOpen : setCurrencyOpen}>
+                        <DropdownMenuTrigger asChild>
+                          <button className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-secondary/50 transition-colors">
+                            <item.icon size={18} className="text-muted-foreground" />
+                            <span className="text-sm font-medium flex-1 text-left">{item.label}</span>
+                            <span className="text-xs text-muted-foreground font-medium">{item.desc}</span>
+                            <ChevronRight size={14} className="text-muted-foreground" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-[calc(100vw-2rem)] sm:w-80 border-border modal-bg rounded-xl">
+                          {item.dropdownType === "balance" ? (
+                            <>
+                              {balanceCurrencies.map(c => (
+                                <DropdownMenuItem 
+                                  key={c} 
+                                  onClick={() => { setBalanceCurrency(c); setBalanceCurrencyOpen(false); toast({ title: "Balance Currency Updated", description: c === "all" ? "All currencies will be included" : `Balance showing in ${c}` }); }}
+                                  className="flex items-center justify-between py-3 cursor-pointer"
+                                >
+                                  <span className="text-sm font-medium">{getBalanceCurrencyLabel(c)}</span>
+                                  {balanceCurrency === c && <Check size={18} className="text-primary" />}
+                                </DropdownMenuItem>
+                              ))}
+                            </>
+                          ) : (
+                            currencies.map(c => (
+                              <DropdownMenuItem 
+                                key={c} 
+                                onClick={() => { setSelectedCurrency(c); setCurrencyOpen(false); toast({ title: "Currency Updated", description: `Currency set to ${c}` }); }}
+                                className="flex items-center justify-between py-3 cursor-pointer"
+                              >
+                                <span className="text-sm font-medium">{c}</span>
+                                {selectedCurrency === c && <Check size={18} className="text-primary" />}
+                              </DropdownMenuItem>
+                            ))
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <button onClick={item.action} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-secondary/50 transition-colors">
                         <item.icon size={18} className="text-muted-foreground" />
                         <span className="text-sm font-medium flex-1 text-left">{item.label}</span>
                         <span className="text-xs text-muted-foreground font-medium">{item.desc}</span>
                         <ChevronRight size={14} className="text-muted-foreground" />
                       </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-[calc(100vw-2rem)] sm:w-80 border-border modal-bg rounded-xl">
-                      {currencies.map(c => (
-                        <DropdownMenuItem 
-                          key={c} 
-                          onClick={() => { setSelectedCurrency(c); setCurrencyOpen(false); toast({ title: "Currency Updated", description: `Currency set to ${c}` }); }}
-                          className="flex items-center justify-between py-3 cursor-pointer"
-                        >
-                          <span className="text-sm font-medium">{c}</span>
-                          {selectedCurrency === c && <Check size={18} className="text-primary" />}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <button onClick={item.action} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-secondary/50 transition-colors">
-                    <item.icon size={18} className="text-muted-foreground" />
-                    <span className="text-sm font-medium flex-1 text-left">{item.label}</span>
-                    <span className="text-xs text-muted-foreground font-medium">{item.desc}</span>
-                    <ChevronRight size={14} className="text-muted-foreground" />
-                  </button>
-                )}
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      ))}
+            </div>
+          ))}
+        </>
+      )}
 
       {/* AI Insight Toggle */}
-      <div>
-        <h2 className="section-title mb-3">AI Features</h2>
-        <div className="rounded-3xl border border-border/30 overflow-hidden card-container shadow-sm">
-          <div className="flex items-center justify-between px-4 py-3.5">
-            <div className="flex items-center gap-3">
-              <Sparkles size={18} className="text-warning shrink-0" />
-              <span className="text-sm font-medium">AI Insight</span>
+      {isLoadingData ? (
+        <div>
+          <Skeleton className="h-6 w-24 mb-3" />
+          <Skeleton className="h-16 w-full rounded-3xl" />
+        </div>
+      ) : (
+        <div>
+          <h2 className="section-title mb-3">AI Features</h2>
+          <div className="rounded-3xl border border-border/30 overflow-hidden card-container shadow-sm">
+            <div className="flex items-center justify-between px-4 py-3.5">
+              <div className="flex items-center gap-3">
+                <Sparkles size={18} className="text-warning shrink-0" />
+                <span className="text-sm font-medium">AI Insight</span>
+              </div>
+              <Switch checked={aiInsightEnabled} onCheckedChange={setAiInsightEnabled} />
             </div>
-            <Switch checked={aiInsightEnabled} onCheckedChange={setAiInsightEnabled} />
           </div>
         </div>
-      </div>
+      )}
 
       {/* Family Section */}
-      <div>
-        <h2 className="section-title mb-3">Workspace</h2>
-        <div className="rounded-3xl border border-border/30 overflow-hidden card-container shadow-sm">
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/30">
-            <div className="flex items-center gap-3">
-              <Users size={18} className="text-muted-foreground" />
-              <span className="text-sm font-medium">Family Mode</span>
-            </div>
-            <Switch checked={familyEnabled} onCheckedChange={setFamilyEnabled} />
-          </div>
-          {familyEnabled && (
-            <DropdownMenu open={familyOpen} onOpenChange={setFamilyOpen}>
-              <DropdownMenuTrigger asChild>
-                <button className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-secondary/50 transition-colors">
-                  <Users size={18} className="text-muted-foreground" />
-                  <span className="text-sm font-medium flex-1 text-left">Family Management</span>
-                  <span className="text-xs text-muted-foreground font-medium">{familyMembers.length} members</span>
-                  <ChevronRight size={14} className="text-muted-foreground" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-[calc(100vw-2rem)] sm:w-80 border-border p-0 modal-bg rounded-xl">
-                <div className="p-4 border-b border-border">
-                  <h3 className="font-semibold">Family Management</h3>
-                  <p className="text-xs text-muted-foreground">{familyMembers.length} members</p>
-                </div>
-                <div className="max-h-60 overflow-y-auto">
-                  {familyMembers.map(m => (
-                    <div key={m.id} className="flex items-center gap-3 px-4 py-3 border-b border-border/30">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-sm font-bold text-primary shrink-0">
-                        {m.avatar}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{m.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{m.email}</p>
-                      </div>
-                      <span className="text-[10px] uppercase font-semibold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full shrink-0">{m.role}</span>
-                      {m.id !== "m1" && (
-                        <button onClick={() => { removeFamilyMember(m.id); toast({ title: "Removed", description: `${m.name} has been removed.` }); }} className="p-1.5 rounded-xl text-destructive hover:bg-destructive/10 shrink-0">
-                          <UserMinus size={14} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <div className="p-4 space-y-2">
-                  <button onClick={() => { setFamilyOpen(false); setShowInvite(true); }} className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm">
-                    Invite Member
-                  </button>
-                  <div className="flex gap-2">
-                    <button onClick={() => { setFamilyOpen(false); setShowResetConfirm(true); }} className="flex-1 py-2.5 rounded-xl bg-warning/10 text-warning font-semibold text-sm flex items-center justify-center gap-1.5">
-                      <Trash2 size={12} /> Reset
-                    </button>
-                    <button onClick={() => { setFamilyOpen(false); setShowDeleteConfirm(true); }} className="flex-1 py-2.5 rounded-xl bg-destructive/10 text-destructive font-semibold text-sm flex items-center justify-center gap-1.5">
-                      <AlertTriangle size={12} /> Delete
-                    </button>
-                  </div>
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+      {isLoadingData ? (
+        <div>
+          <Skeleton className="h-6 w-24 mb-3" />
+          <Skeleton className="h-32 w-full rounded-3xl" />
         </div>
-      </div>
+      ) : (
+        <div>
+          <h2 className="section-title mb-3">Workspace</h2>
+          <div className="rounded-3xl border border-border/30 overflow-hidden card-container shadow-sm">
+            <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/30">
+              <div className="flex items-center gap-3">
+                <Users size={18} className="text-muted-foreground" />
+                <span className="text-sm font-medium">Family Mode</span>
+              </div>
+              <Switch checked={familyEnabled} onCheckedChange={setFamilyEnabled} />
+            </div>
+            {familyEnabled && (
+              <DropdownMenu open={familyOpen} onOpenChange={setFamilyOpen}>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-secondary/50 transition-colors">
+                    <Users size={18} className="text-muted-foreground" />
+                    <span className="text-sm font-medium flex-1 text-left">Family Management</span>
+                    <span className="text-xs text-muted-foreground font-medium">{familyMembers.length} members</span>
+                    <ChevronRight size={14} className="text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-[calc(100vw-2rem)] sm:w-80 border-border p-0 modal-bg rounded-xl">
+                  <div className="p-4 border-b border-border">
+                    <h3 className="font-semibold">Family Management</h3>
+                    <p className="text-xs text-muted-foreground">{familyMembers.length} members</p>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto">
+                    {familyMembers.map(m => (
+                      <div key={m.id} className="flex items-center gap-3 px-4 py-3 border-b border-border/30">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                          {m.avatar}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{m.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{m.email}</p>
+                        </div>
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full shrink-0">{m.role}</span>
+                        {m.id !== "m1" && (
+                          <button onClick={() => { removeFamilyMember(m.id); toast({ title: "Removed", description: `${m.name} has been removed.` }); }} className="p-1.5 rounded-xl text-destructive hover:bg-destructive/10 shrink-0">
+                            <UserMinus size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-4 space-y-2">
+                    <button onClick={() => { setFamilyOpen(false); setShowInvite(true); }} className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm">
+                      Invite Member
+                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={() => { setFamilyOpen(false); setShowResetConfirm(true); }} className="flex-1 py-2.5 rounded-xl bg-warning/10 text-warning font-semibold text-sm flex items-center justify-center gap-1.5">
+                        <Trash2 size={12} /> Reset
+                      </button>
+                      <button onClick={() => { setFamilyOpen(false); setShowDeleteConfirm(true); }} className="flex-1 py-2.5 rounded-xl bg-destructive/10 text-destructive font-semibold text-sm flex items-center justify-center gap-1.5">
+                        <AlertTriangle size={12} /> Delete
+                      </button>
+                    </div>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </div>
+      )}
 
-      <button onClick={() => toast({ title: "Logged Out", description: "You have been logged out." })} className="w-full rounded-3xl border border-border/30 flex items-center justify-center gap-2 text-destructive font-semibold text-sm py-3.5 hover:bg-secondary/50 transition-colors card-container shadow-sm">
-        <LogOut size={16} />
-        Logout
-      </button>
+      {!isLoadingData && (
+        <button onClick={() => toast({ title: "Logged Out", description: "You have been logged out." })} className="w-full rounded-3xl border border-border/30 flex items-center justify-center gap-2 text-destructive font-semibold text-sm py-3.5 hover:bg-secondary/50 transition-colors card-container shadow-sm">
+          <LogOut size={16} />
+          Logout
+        </button>
+      )}
 
       {/* Profile Edit Dialog */}
       <Dialog open={showProfile} onOpenChange={setShowProfile}>

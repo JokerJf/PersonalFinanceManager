@@ -1,4 +1,13 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from "react";
+import { api } from "../api/api";
+import { 
+  mockAccounts, 
+  mockTransactions, 
+  mockDebts, 
+  mockNotifications, 
+  mockFamilyMembers, 
+  mockExchangeRates 
+} from "../api/mockData";
 
 export type Workspace = "personal" | "family";
 export type CardNetwork = "visa" | "mastercard" | "humo" | "uzcard" | "none";
@@ -9,10 +18,8 @@ export interface Account {
   type: "card" | "cash" | "bank";
   currency: string;
   balance: number;
-  transactions: number;
   color: string;
   cardNetwork?: CardNetwork;
-  cardNumber?: string;
   cardNumberFull?: string;
   expiryDate?: string;
   includedInBalance?: boolean;
@@ -99,6 +106,8 @@ interface AppContextType {
   familyMembers: FamilyMember[];
   setFamilyMembers: (m: FamilyMember[]) => void;
   totalBalance: number;
+  balanceCurrency: string;
+  setBalanceCurrency: (c: string) => void;
   currency: string;
   notifications: Notification[];
   markNotificationRead: (id: string) => void;
@@ -117,6 +126,10 @@ interface AppContextType {
   aiInsightEnabled: boolean;
   setAiInsightEnabled: (v: boolean) => void;
   exchangeRates: ExchangeRate[];
+  isLoadingExchangeRates: boolean;
+  isLoadingData: boolean;
+  refreshData: () => Promise<void>;
+  refreshExchangeRates: () => Promise<void>;
   selectedCardId: string | null;
   setSelectedCardId: (id: string | null) => void;
   selectedTransactionId: string | null;
@@ -131,23 +144,25 @@ interface AppContextType {
   deleteFamily: () => void;
   removeFamilyMember: (id: string) => void;
   toggleAccountInBalance: (id: string) => void;
-  deleteTransaction: (id: string) => void;
-  updateTransaction: (tx: Transaction) => void;
-  updateAccount: (account: Account) => void;
-  addAccount: (account: Account) => void;
+  deleteTransaction: (id: string) => Promise<void>;
+  deleteAccount: (id: string) => Promise<void>;
+  updateTransaction: (tx: Transaction) => Promise<void>;
+  updateAccount: (account: Account) => Promise<void>;
+  addAccount: (account: Omit<Account, 'id'>) => Promise<Account>;
+  addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<Transaction>;
 }
 
 const personalAccounts: Account[] = [
-  { id: "1", name: "Visa Platinum", type: "card", currency: "USD", balance: 4250.80, transactions: 47, color: "from-[#1a1f71] to-[#2d4aa8]", cardNetwork: "visa", cardNumber: "4276 •••• •••• 3421", cardNumberFull: "4276 1234 5678 3421", expiryDate: "09/28", includedInBalance: true },
-  { id: "2", name: "Humo", type: "card", currency: "UZS", balance: 12800000, transactions: 23, color: "from-[#00a651] to-[#4fc978]", cardNetwork: "humo", cardNumber: "9860 •••• •••• 7812", cardNumberFull: "9860 4567 8901 7812", expiryDate: "03/27", includedInBalance: true },
-  { id: "3", name: "UzCard", type: "card", currency: "UZS", balance: 5400000, transactions: 31, color: "from-[#0066b3] to-[#00a0e3]", cardNetwork: "uzcard", cardNumber: "8600 •••• •••• 1456", cardNumberFull: "8600 7890 1234 1456", expiryDate: "11/26", includedInBalance: true },
-  { id: "4", name: "Savings Account", type: "bank", currency: "USD", balance: 12800.00, transactions: 8, color: "from-emerald-600 to-teal-500", includedInBalance: true },
-  { id: "5", name: "Cash", type: "cash", currency: "USD", balance: 340.50, transactions: 12, color: "from-amber-500 to-orange-400", includedInBalance: true },
+  { id: "1", name: "Visa Platinum", type: "card", currency: "USD", balance: 4250.80, color: "from-[#1a1f71] to-[#2d4aa8]", cardNetwork: "visa", cardNumberFull: "4276123456783421", expiryDate: "09/28", includedInBalance: true },
+  { id: "2", name: "Humo", type: "card", currency: "UZS", balance: 12800000, color: "from-[#00a651] to-[#4fc978]", cardNetwork: "humo", cardNumberFull: "9860456789017812", expiryDate: "03/27", includedInBalance: true },
+  { id: "3", name: "UzCard", type: "card", currency: "UZS", balance: 5400000, color: "from-[#0066b3] to-[#00a0e3]", cardNetwork: "uzcard", cardNumberFull: "8600789012341456", expiryDate: "11/26", includedInBalance: true },
+  { id: "4", name: "Savings Account", type: "bank", currency: "USD", balance: 12800.00, color: "from-emerald-600 to-teal-500", includedInBalance: true },
+  { id: "5", name: "Cash", type: "cash", currency: "USD", balance: 340.50, color: "from-amber-500 to-orange-400", includedInBalance: true },
 ];
 
 const defaultFamilyAccounts: Account[] = [
-  { id: "f1", name: "Family Visa", type: "card", currency: "USD", balance: 8920.30, transactions: 62, color: "from-violet-600 to-purple-500", cardNetwork: "visa", cardNumber: "4276 •••• •••• 9988", cardNumberFull: "4276 9876 5432 9988", expiryDate: "12/27", includedInBalance: true },
-  { id: "f2", name: "Joint Savings", type: "bank", currency: "USD", balance: 25400.00, transactions: 15, color: "from-emerald-600 to-teal-500", includedInBalance: true },
+  { id: "f1", name: "Family Visa", type: "card", currency: "USD", balance: 8920.30, color: "from-violet-600 to-purple-500", cardNetwork: "visa", cardNumberFull: "4276987654329988", expiryDate: "12/27", includedInBalance: true },
+  { id: "f2", name: "Joint Savings", type: "bank", currency: "USD", balance: 25400.00, color: "from-emerald-600 to-teal-500", includedInBalance: true },
 ];
 
 const personalTransactions: Transaction[] = [
@@ -190,37 +205,21 @@ const initialNotifications: Notification[] = [
   { id: "n5", title: "Transfer Complete", message: "Transfer of $500 from Visa Platinum to Savings Account completed.", date: "2026-02-23", read: true, type: "success" },
 ];
 
-const exchangeRates: ExchangeRate[] = [
-  { from: "USD", to: "UZS", rate: 12800 },
-  { from: "USD", to: "EUR", rate: 0.92 },
-  { from: "USD", to: "RUB", rate: 89.50 },
-  { from: "USD", to: "GBP", rate: 0.79 },
-  { from: "EUR", to: "UZS", rate: 13913 },
-  { from: "EUR", to: "USD", rate: 1.087 },
-  { from: "EUR", to: "RUB", rate: 97.28 },
-  { from: "EUR", to: "GBP", rate: 0.858 },
-  { from: "UZS", to: "USD", rate: 0.0000781 },
-  { from: "UZS", to: "EUR", rate: 0.0000719 },
-  { from: "RUB", to: "USD", rate: 0.01117 },
-  { from: "RUB", to: "UZS", rate: 143.02 },
-  { from: "GBP", to: "USD", rate: 1.266 },
-  { from: "GBP", to: "UZS", rate: 16202 },
-];
-
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [workspace, setWorkspace] = useState<Workspace>("personal");
-  const [personalAccs, setPersonalAccs] = useState(personalAccounts);
-  const [familyAccs, setFamilyAccs] = useState(defaultFamilyAccounts);
-  const [personalTxs, setPersonalTxs] = useState(personalTransactions);
-  const [familyTxs, setFamilyTxs] = useState(defaultFamilyTransactions);
-  const [personalDebtsState, setPersonalDebts] = useState(personalDebts);
+  const [personalAccs, setPersonalAccs] = useState<Account[]>([]);
+  const [familyAccs, setFamilyAccs] = useState<Account[]>([]);
+  const [personalTxs, setPersonalTxs] = useState<Transaction[]>([]);
+  const [familyTxs, setFamilyTxs] = useState<Transaction[]>([]);
+  const [personalDebtsState, setPersonalDebts] = useState<Debt[]>([]);
   const [familyDebtsState, setFamilyDebts] = useState<Debt[]>([]);
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [userName, setUserName] = useState("Alex Johnson");
   const [userEmail, setUserEmail] = useState("alex@email.com");
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
+  const [balanceCurrency, setBalanceCurrency] = useState("all");
   const [darkMode, setDarkMode] = useState(true);
   const [familyEnabled, setFamilyEnabled] = useState(true);
   const [aiInsightEnabled, setAiInsightEnabled] = useState(true);
@@ -229,7 +228,54 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [addAccountModalOpen, setAddAccountModalOpen] = useState(false);
   const [addTransactionModalOpen, setAddTransactionModalOpen] = useState(false);
   const [addTransactionDefaultType, setAddTransactionDefaultType] = useState<"expense" | "income" | "transfer">("expense");
-  const [familyMembersState, setFamilyMembers] = useState(defaultFamilyMembers);
+  const [familyMembersState, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const [exchangeRatesState, setExchangeRates] = useState<ExchangeRate[]>([]);
+  const [isLoadingExchangeRates, setIsLoadingExchangeRates] = useState(true);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  // Load data from API on initial render
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load accounts
+        const accounts = await api.accounts.getAllAccounts();
+        setPersonalAccs(accounts);
+
+        // Load transactions
+        const transactions = await api.transactions.getAllTransactions();
+        setPersonalTxs(transactions);
+
+        // Load debts
+        const debts = await api.debts.getAllDebts();
+        setPersonalDebts(debts);
+
+        // Load notifications
+        const notificationsData = await api.notifications.getAllNotifications();
+        setNotifications(notificationsData);
+
+        // Load exchange rates
+        const rates = await api.exchangeRates.getExchangeRates();
+        setExchangeRates(rates);
+        setIsLoadingExchangeRates(false);
+        setIsLoadingData(false);
+      } catch (error) {
+        console.error("Error loading data:", error);
+        // Fallback to default data if API fails
+        setPersonalAccs(personalAccounts);
+        setFamilyAccs(defaultFamilyAccounts);
+        setPersonalTxs(personalTransactions);
+        setFamilyTxs(defaultFamilyTransactions);
+        setPersonalDebts(personalDebts);
+        setNotifications(initialNotifications);
+        setFamilyMembers(defaultFamilyMembers);
+        setExchangeRates(mockExchangeRates);
+        setIsLoadingExchangeRates(false);
+        setIsLoadingData(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const accounts = workspace === "personal" ? personalAccs : familyAccs;
   const setAccounts = (a: Account[]) => {
@@ -248,7 +294,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const totalBalance = accounts
-    .filter(a => a.currency === selectedCurrency && a.includedInBalance !== false)
+    .filter(a => (balanceCurrency === "all" || a.currency === balanceCurrency) && a.includedInBalance !== false)
     .reduce((sum, a) => sum + a.balance, 0);
 
   const markNotificationRead = (id: string) => {
@@ -270,26 +316,99 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     else setFamilyAccs(prev => updater(prev));
   }, [workspace]);
 
-  const deleteTransaction = useCallback((id: string) => {
+  const deleteTransaction = useCallback(async (id: string) => {
+    try {
+      await api.transactions.deleteTransaction(id);
+    } catch (error) {
+      console.error("Error deleting transaction:", error);
+    }
     if (workspace === "personal") setPersonalTxs(prev => prev.filter(t => t.id !== id));
     else setFamilyTxs(prev => prev.filter(t => t.id !== id));
   }, [workspace]);
 
-  const updateTransaction = useCallback((tx: Transaction) => {
+  const deleteAccount = useCallback(async (id: string) => {
+    try {
+      await api.accounts.deleteAccount(id);
+    } catch (error) {
+      console.error("Error deleting account:", error);
+    }
+    // Delete all transactions associated with this account
+    const accountTransactions = workspace === "personal" ? personalTxs : familyTxs;
+    const txsToDelete = accountTransactions.filter(t => t.accountId === id);
+    
+    // Remove transactions
+    if (workspace === "personal") {
+      setPersonalTxs(prev => prev.filter(t => t.accountId !== id));
+    } else {
+      setFamilyTxs(prev => prev.filter(t => t.accountId !== id));
+    }
+    
+    // Remove the account
+    if (workspace === "personal") setPersonalAccs(prev => prev.filter(a => a.id !== id));
+    else setFamilyAccs(prev => prev.filter(a => a.id !== id));
+  }, [workspace, personalTxs, familyTxs]);
+
+  const updateTransaction = useCallback(async (tx: Transaction) => {
+    try {
+      await api.transactions.updateTransaction(tx.id, tx);
+    } catch (error) {
+      console.error("Error updating transaction:", error);
+    }
     const updater = (txs: Transaction[]) => txs.map(t => t.id === tx.id ? tx : t);
     if (workspace === "personal") setPersonalTxs(prev => updater(prev));
     else setFamilyTxs(prev => updater(prev));
   }, [workspace]);
 
-  const updateAccount = useCallback((account: Account) => {
+  const updateAccount = useCallback(async (account: Account) => {
+    try {
+      await api.accounts.updateAccount(account.id, account);
+    } catch (error) {
+      console.error("Error updating account:", error);
+    }
     const updater = (accs: Account[]) => accs.map(a => a.id === account.id ? account : a);
     if (workspace === "personal") setPersonalAccs(prev => updater(prev));
     else setFamilyAccs(prev => updater(prev));
   }, [workspace]);
 
-  const addAccount = useCallback((account: Account) => {
-    if (workspace === "personal") setPersonalAccs(prev => [...prev, account]);
-    else setFamilyAccs(prev => [...prev, account]);
+  const addAccount = useCallback(async (account: Omit<Account, 'id'>) => {
+    console.log("Received account with color:", account.color);
+    try {
+      const newAccount = await api.accounts.createAccount(account);
+      console.log("API returned account with color:", newAccount.color);
+      if (workspace === "personal") setPersonalAccs(prev => [...prev, newAccount]);
+      else setFamilyAccs(prev => [...prev, newAccount]);
+      return newAccount;
+    } catch (error) {
+      console.error("Error creating account:", error);
+      // Fallback to local creation if API fails
+      const fallbackAccount: Account = {
+        ...account,
+        id: Date.now().toString()
+      };
+      console.log("Fallback account with color:", fallbackAccount.color);
+      if (workspace === "personal") setPersonalAccs(prev => [...prev, fallbackAccount]);
+      else setFamilyAccs(prev => [...prev, fallbackAccount]);
+      return fallbackAccount;
+    }
+  }, [workspace]);
+
+  const addTransaction = useCallback(async (transaction: Omit<Transaction, 'id'>) => {
+    try {
+      const newTransaction = await api.transactions.createTransaction(transaction);
+      if (workspace === "personal") setPersonalTxs(prev => [...prev, newTransaction]);
+      else setFamilyTxs(prev => [...prev, newTransaction]);
+      return newTransaction;
+    } catch (error) {
+      console.error("Error creating transaction:", error);
+      // Fallback to local creation if API fails
+      const fallbackTransaction: Transaction = {
+        ...transaction,
+        id: Date.now().toString()
+      };
+      if (workspace === "personal") setPersonalTxs(prev => [...prev, fallbackTransaction]);
+      else setFamilyTxs(prev => [...prev, fallbackTransaction]);
+      return fallbackTransaction;
+    }
   }, [workspace]);
 
   const resetFamilyData = useCallback(() => {
@@ -311,20 +430,65 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setFamilyMembers(prev => prev.filter(m => m.id !== id));
   }, []);
 
+  // Функция обновления всех данных с отображением скелетной загрузки
+  const refreshData = useCallback(async () => {
+    setIsLoadingData(true);
+    try {
+      const accounts = await api.accounts.getAllAccounts();
+      const transactions = await api.transactions.getAllTransactions();
+      const debts = await api.debts.getAllDebts();
+      const notificationsData = await api.notifications.getAllNotifications();
+      
+      if (workspace === "personal") {
+        setPersonalAccs(accounts);
+        setPersonalTxs(transactions);
+        setPersonalDebts(debts);
+      } else {
+        setFamilyAccs(accounts);
+        setFamilyTxs(transactions);
+        setFamilyDebts(debts);
+      }
+      setNotifications(notificationsData);
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, [workspace]);
+
+  // Функция обновления курсов валют
+  const refreshExchangeRates = useCallback(async () => {
+    setIsLoadingExchangeRates(true);
+    try {
+      const rates = await api.exchangeRates.getExchangeRates();
+      setExchangeRates(rates);
+    } catch (error) {
+      console.error("Error refreshing exchange rates:", error);
+    } finally {
+      setIsLoadingExchangeRates(false);
+    }
+  }, []);
+
   return (
     <AppContext.Provider value={{
       workspace, setWorkspace, accounts, setAccounts, transactions, setTransactions,
       debts, setDebts, familyMembers: familyMembersState, setFamilyMembers,
-      totalBalance, currency: selectedCurrency,
+      totalBalance, balanceCurrency, setBalanceCurrency, currency: selectedCurrency,
       notifications, markNotificationRead, markAllNotificationsRead, unreadCount,
       userName, setUserName, userEmail, setUserEmail,
       selectedCurrency, setSelectedCurrency, darkMode, toggleDarkMode,
       familyEnabled, setFamilyEnabled, aiInsightEnabled, setAiInsightEnabled,
-      exchangeRates, selectedCardId, setSelectedCardId, selectedTransactionId, setSelectedTransactionId,
+      exchangeRates: exchangeRatesState,
+      isLoadingExchangeRates,
+      isLoadingData,
+      refreshData,
+      refreshExchangeRates,
+      selectedCardId, setSelectedCardId, selectedTransactionId, setSelectedTransactionId,
       addAccountModalOpen, setAddAccountModalOpen, addTransactionModalOpen, setAddTransactionModalOpen,
       addTransactionDefaultType, setAddTransactionDefaultType,
       resetFamilyData, deleteFamily, removeFamilyMember, toggleAccountInBalance,
-      deleteTransaction, updateTransaction, updateAccount, addAccount,
+      deleteTransaction, deleteAccount, updateTransaction, updateAccount, addAccount,
+      addTransaction,
     }}>
       {children}
     </AppContext.Provider>

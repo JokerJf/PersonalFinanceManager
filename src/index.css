@@ -135,6 +135,15 @@
   .tab-inactive {
     @apply bg-transparent text-muted-foreground hover:text-foreground bg-secondary/50;
   }
+  
+  /* Select dropdown options in dark mode */
+  select option {
+    @apply bg-white text-slate-900;
+  }
+  
+  .dark select option {
+    @apply bg-[#1c202c] text-white;
+  }
   .quick-action-btn {
     @apply flex flex-col items-center gap-2 p-4 rounded-3xl transition-all active:scale-95;
   }
