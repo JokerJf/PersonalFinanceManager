@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useApp, Debt, Credit } from "@/context/AppContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Check, CreditCard, CalendarDays, Minus } from "lucide-react";
@@ -33,6 +34,7 @@ const calcMonthlyPayment = (totalAmount: number, months: number) => {
 };
 
 const Debts = () => {
+  const { t } = useTranslation();
   const { debts, setDebts, credits, setCredits, isLoadingData } = useApp();
 
   const [mainTab, setMainTab] = useState<MainTab>("debts");
@@ -86,16 +88,16 @@ const Debts = () => {
     );
 
     toast({
-      title: "Долг закрыт",
-      description: "Запись помечена как закрытая.",
+      title: t("debts.debtClosed"),
+      description: t("debts.debtClosedDesc"),
     });
   };
 
   const handleAddDebt = () => {
     if (!debtName.trim() || !debtAmount || Number(debtAmount) <= 0) {
       toast({
-        title: "Ошибка",
-        description: "Заполни имя и корректную сумму.",
+        title: t("debts.error"),
+        description: t("debts.fillDebtFields"),
       });
       return;
     }
@@ -118,7 +120,7 @@ const Debts = () => {
     setDebtDesc("");
 
     toast({
-      title: "Долг добавлен",
+      title: t("debts.debtAdded"),
     });
   };
 
@@ -128,8 +130,8 @@ const Debts = () => {
 
     if (!creditTitle.trim() || !totalAmount || totalAmount <= 0 || !months || months <= 0 || !creditStartDate) {
       toast({
-        title: "Ошибка",
-        description: "Заполни название, сумму, срок и дату начала.",
+        title: t("debts.error"),
+        description: t("debts.fillCreditFields"),
       });
       return;
     }
@@ -160,8 +162,8 @@ const Debts = () => {
     setCreditDesc("");
 
     toast({
-      title: "Кредит добавлен",
-      description: "График платежей создан.",
+      title: t("debts.addCredit"),
+      description: t("debts.createdPaymentPlan"),
     });
   };
 
@@ -170,10 +172,7 @@ const Debts = () => {
       credits.map((credit) => {
         if (credit.id !== id) return credit;
 
-        const nextPaid = Math.min(
-          Math.max(credit.paidInstallments + delta, 0),
-          credit.months
-        );
+        const nextPaid = Math.min(Math.max(credit.paidInstallments + delta, 0), credit.months);
 
         return {
           ...credit,
@@ -187,7 +186,7 @@ const Debts = () => {
   return (
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Долги и кредиты</h1>
+        <h1 className="text-xl font-bold">{t("debts.title")}</h1>
 
         {!isLoadingData && (
           <button
@@ -205,8 +204,8 @@ const Debts = () => {
       ) : (
         <div className="flex rounded-2xl p-1 gap-1 shadow-sm">
           {[
-            { key: "debts" as MainTab, label: "Долги" },
-            { key: "credits" as MainTab, label: "Кредиты" },
+            { key: "debts" as MainTab, label: t("debts.debtsTab") },
+            { key: "credits" as MainTab, label: t("debts.creditsTab") },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -229,8 +228,8 @@ const Debts = () => {
           ) : (
             <div className="flex rounded-2xl p-1 gap-1 shadow-sm">
               {[
-                { key: "owe" as DebtTab, label: "Я должен" },
-                { key: "owed" as DebtTab, label: "Мне должны" },
+                { key: "owe" as DebtTab, label: t("debts.iOwe") },
+                { key: "owed" as DebtTab, label: t("debts.owedToMe") },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -250,13 +249,10 @@ const Debts = () => {
           ) : (
             <div className="fintech-card-elevated text-center py-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-                {debtTab === "owe" ? "Всего я должен" : "Всего должны мне"}
+                {debtTab === "owe" ? t("debts.totalIOwe") : t("debts.totalOwedToMe")}
               </p>
               <p className={`text-2xl font-bold ${debtTab === "owe" ? "text-destructive" : "text-success"}`}>
                 {formatMoney(totalOpenDebts, "USD")}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Для mixed валют позже можно добавить конвертацию по exchange rates
               </p>
             </div>
           )}
@@ -271,7 +267,7 @@ const Debts = () => {
             </div>
           ) : openDebts.length > 0 ? (
             <div>
-              <h2 className="section-title mb-3">Открытые</h2>
+              <h2 className="section-title mb-3">{t("debts.open")}</h2>
               <div className="space-y-2">
                 {openDebts.map((d) => (
                   <div key={d.id} className="fintech-card flex items-center gap-3 py-3">
@@ -305,7 +301,7 @@ const Debts = () => {
 
           {!isLoadingData && closedDebts.length > 0 && (
             <div>
-              <h2 className="section-title mb-3">Закрытые</h2>
+              <h2 className="section-title mb-3">{t("debts.closed")}</h2>
               <div className="space-y-2">
                 {closedDebts.map((d) => (
                   <div key={d.id} className="fintech-card flex items-center gap-3 py-3 opacity-50">
@@ -329,7 +325,7 @@ const Debts = () => {
 
           {!isLoadingData && openDebts.length === 0 && closedDebts.length === 0 && (
             <div className="text-center py-10 text-muted-foreground">
-              <p className="text-sm">Пока нет долгов</p>
+              <p className="text-sm">{t("debts.noDebts")}</p>
             </div>
           )}
         </>
@@ -344,22 +340,16 @@ const Debts = () => {
             <div className="fintech-card-elevated py-4 px-4">
               <div className="flex items-center gap-2 mb-2">
                 <CreditCard size={18} className="text-primary" />
-                <p className="text-sm font-semibold">Активные кредиты / рассрочки</p>
+                <p className="text-sm font-semibold">{t("debts.active")}</p>
               </div>
 
-              <p className="text-2xl font-bold text-destructive">
-                {formatMoney(totalCreditBalance, "USD")}
-              </p>
-
-              <p className="text-xs text-muted-foreground mt-1">
-                Остаток считается по количеству невнесённых платежей
-              </p>
+              <p className="text-2xl font-bold text-destructive">{formatMoney(totalCreditBalance, "USD")}</p>
             </div>
           )}
 
           {!isLoadingData && activeCredits.length > 0 && (
             <div>
-              <h2 className="section-title mb-3">Активные</h2>
+              <h2 className="section-title mb-3">{t("debts.active")}</h2>
               <div className="space-y-3">
                 {activeCredits.map((credit) => {
                   const monthlyPayment = calcMonthlyPayment(credit.totalAmount, credit.months);
@@ -379,7 +369,7 @@ const Debts = () => {
                             <div>
                               <p className="text-sm font-semibold">{credit.title}</p>
                               <p className="text-xs text-muted-foreground">
-                                {credit.kind === "credit" ? "Кредит" : "Рассрочка"}
+                                {credit.kind === "credit" ? t("debts.credit") : t("debts.installment")}
                                 {credit.description ? ` · ${credit.description}` : ""}
                               </p>
                             </div>
@@ -391,23 +381,20 @@ const Debts = () => {
 
                           <div className="mt-2 text-xs text-muted-foreground space-y-1">
                             <p>
-                              Период: {credit.startDate} → {credit.endDate}
+                              {t("debts.period")}: {credit.startDate} → {credit.endDate}
                             </p>
                             <p>
-                              Ежемесячный платёж: {formatMoney(monthlyPayment, credit.currency)}
+                              {t("debts.monthlyPayment")}: {formatMoney(monthlyPayment, credit.currency)}
                             </p>
                             <p>
-                              Оплачено: {credit.paidInstallments} из {credit.months}
+                              {t("debts.paid")}: {credit.paidInstallments} / {credit.months}
                             </p>
                           </div>
                         </div>
                       </div>
 
                       <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
-                        <div
-                          className="h-full bg-primary transition-all"
-                          style={{ width: `${progress}%` }}
-                        />
+                        <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
                       </div>
 
                       <div className="flex items-center justify-between gap-2">
@@ -416,7 +403,7 @@ const Debts = () => {
                           className="flex items-center justify-center gap-1 px-3 py-2 rounded-xl secondary-bg text-sm"
                         >
                           <Minus size={14} />
-                          Убрать платёж
+                          {t("debts.removePayment")}
                         </button>
 
                         <button
@@ -424,7 +411,7 @@ const Debts = () => {
                           className="flex items-center justify-center gap-1 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
                         >
                           <Check size={14} />
-                          Отметить платёж
+                          {t("debts.markPayment")}
                         </button>
                       </div>
                     </div>
@@ -436,7 +423,7 @@ const Debts = () => {
 
           {!isLoadingData && closedCredits.length > 0 && (
             <div>
-              <h2 className="section-title mb-3">Закрытые</h2>
+              <h2 className="section-title mb-3">{t("debts.closed")}</h2>
               <div className="space-y-2">
                 {closedCredits.map((credit) => (
                   <div key={credit.id} className="fintech-card py-3 opacity-60">
@@ -444,11 +431,11 @@ const Debts = () => {
                       <div>
                         <p className="text-sm font-medium line-through">{credit.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {credit.kind === "credit" ? "Кредит" : "Рассрочка"} · {credit.months} платежей
+                          {credit.kind === "credit" ? t("debts.credit") : t("debts.installment")} · {credit.months}
                         </p>
                       </div>
 
-                      <p className="text-sm font-semibold text-success">Закрыт</p>
+                      <p className="text-sm font-semibold text-success">{t("debts.closedStatus")}</p>
                     </div>
                   </div>
                 ))}
@@ -458,7 +445,7 @@ const Debts = () => {
 
           {!isLoadingData && activeCredits.length === 0 && closedCredits.length === 0 && (
             <div className="text-center py-10 text-muted-foreground">
-              <p className="text-sm">Пока нет кредитов или рассрочек</p>
+              <p className="text-sm">{t("debts.noCredits")}</p>
             </div>
           )}
         </>
@@ -468,7 +455,7 @@ const Debts = () => {
       <Dialog open={showAddDebt} onOpenChange={setShowAddDebt}>
         <DialogContent className="sm:mx-4 mx-0 sm:max-w-sm max-w-[calc(100vw-1rem)]">
           <DialogHeader>
-            <DialogTitle>Добавить долг</DialogTitle>
+            <DialogTitle>{t("debts.addDebt")}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -481,23 +468,27 @@ const Debts = () => {
                     debtType === type ? "tab-active" : "tab-inactive"
                   }`}
                 >
-                  {type === "owe" ? "Я должен" : "Мне должны"}
+                  {type === "owe" ? t("debts.iOwe") : t("debts.owedToMe")}
                 </button>
               ))}
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Имя</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                {t("debts.personName")}
+              </label>
               <input
                 value={debtName}
                 onChange={(e) => setDebtName(e.target.value)}
-                placeholder="Например, Сардор"
+                placeholder={t("debts.personName")}
                 className="w-full rounded-xl bg-secondary dark:bg-[rgba(28,32,44,0.3)] border-0 px-4 py-3 text-sm focus:ring-2 focus:ring-primary outline-none"
               />
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Сумма</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                {t("debts.amount")}
+              </label>
               <input
                 type="number"
                 value={debtAmount}
@@ -508,7 +499,9 @@ const Debts = () => {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Валюта</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                {t("debts.currency")}
+              </label>
               <div className="grid grid-cols-3 gap-2">
                 {["USD", "UZS", "EUR"].map((currency) => (
                   <button
@@ -527,11 +520,13 @@ const Debts = () => {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Описание</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                {t("debts.optionalDescription")}
+              </label>
               <input
                 value={debtDesc}
                 onChange={(e) => setDebtDesc(e.target.value)}
-                placeholder="На что был взят"
+                placeholder={t("debts.description")}
                 className="w-full rounded-xl bg-secondary dark:bg-[rgba(28,32,44,0.3)] border-0 px-4 py-3 text-sm focus:ring-2 focus:ring-primary outline-none"
               />
             </div>
@@ -540,7 +535,7 @@ const Debts = () => {
               onClick={handleAddDebt}
               className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm"
             >
-              Добавить долг
+              {t("debts.addDebt")}
             </button>
           </div>
         </DialogContent>
@@ -550,7 +545,7 @@ const Debts = () => {
       <Dialog open={showAddCredit} onOpenChange={setShowAddCredit}>
         <DialogContent className="sm:mx-4 mx-0 sm:max-w-sm max-w-[calc(100vw-1rem)]">
           <DialogHeader>
-            <DialogTitle>Добавить кредит / рассрочку</DialogTitle>
+            <DialogTitle>{t("debts.addCredit")}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -563,23 +558,27 @@ const Debts = () => {
                     creditKind === kind ? "tab-active" : "tab-inactive"
                   }`}
                 >
-                  {kind === "credit" ? "Кредит" : "Рассрочка"}
+                  {kind === "credit" ? t("debts.credit") : t("debts.installment")}
                 </button>
               ))}
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Название</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                {t("debts.titleLabel")}
+              </label>
               <input
                 value={creditTitle}
                 onChange={(e) => setCreditTitle(e.target.value)}
-                placeholder="Например, MacBook / Телефон / Авто"
+                placeholder={t("debts.titleLabel")}
                 className="w-full rounded-xl bg-secondary dark:bg-[rgba(28,32,44,0.3)] border-0 px-4 py-3 text-sm focus:ring-2 focus:ring-primary outline-none"
               />
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Общая сумма</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                {t("debts.totalAmount")}
+              </label>
               <input
                 type="number"
                 value={creditAmount}
@@ -590,7 +589,9 @@ const Debts = () => {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Валюта</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                {t("debts.currency")}
+              </label>
               <div className="grid grid-cols-3 gap-2">
                 {["USD", "UZS", "EUR"].map((currency) => (
                   <button
@@ -609,7 +610,9 @@ const Debts = () => {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Дата начала</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                {t("debts.startDate")}
+              </label>
               <input
                 type="date"
                 value={creditStartDate}
@@ -619,27 +622,29 @@ const Debts = () => {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Срок в месяцах</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                {t("debts.months")}
+              </label>
               <input
                 type="number"
                 min="1"
                 value={creditMonths}
                 onChange={(e) => setCreditMonths(e.target.value)}
-                placeholder="Например 5"
+                placeholder="5"
                 className="w-full rounded-xl bg-secondary dark:bg-[rgba(28,32,44,0.3)] border-0 px-4 py-3 text-sm focus:ring-2 focus:ring-primary outline-none"
               />
             </div>
 
             <div className="rounded-2xl secondary-bg p-3 text-sm">
-              <p className="font-medium mb-1">Предпросмотр</p>
+              <p className="font-medium mb-1">{t("debts.preview")}</p>
               <p className="text-muted-foreground">
-                Конец срока:{" "}
+                {t("debts.endDate")}:{" "}
                 <span className="text-foreground">
                   {addMonthsToDate(creditStartDate, Number(creditMonths) || 0) || "—"}
                 </span>
               </p>
               <p className="text-muted-foreground">
-                Платёж в месяц:{" "}
+                {t("debts.monthlyPayment")}:{" "}
                 <span className="text-foreground">
                   {formatMoney(
                     calcMonthlyPayment(Number(creditAmount) || 0, Number(creditMonths) || 1),
@@ -650,11 +655,13 @@ const Debts = () => {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Описание</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                {t("debts.optionalDescription")}
+              </label>
               <input
                 value={creditDesc}
                 onChange={(e) => setCreditDesc(e.target.value)}
-                placeholder="Комментарий"
+                placeholder={t("debts.description")}
                 className="w-full rounded-xl bg-secondary dark:bg-[rgba(28,32,44,0.3)] border-0 px-4 py-3 text-sm focus:ring-2 focus:ring-primary outline-none"
               />
             </div>
@@ -663,7 +670,7 @@ const Debts = () => {
               onClick={handleAddCredit}
               className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm"
             >
-              Создать график оплат
+              {t("debts.addCredit")}
             </button>
           </div>
         </DialogContent>

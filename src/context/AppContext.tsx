@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from "react";
 import { api } from "../api/api";
+import i18n from "../i18n";
 import {
   mockAccounts,
   mockTransactions,
@@ -91,79 +92,106 @@ export interface ExchangeRate {
   rate: number;
 }
 
-// Category icon mapping using Lucide icon names
 export const categoryIcons: Record<string, string> = {
   "Food & Dining": "utensils-crossed",
-  "Transport": "car",
-  "Shopping": "shopping-bag",
-  "Entertainment": "film",
-  "Health": "heart-pulse",
-  "Housing": "home",
-  "Groceries": "shopping-cart",
-  "Salary": "briefcase",
-  "Freelance": "laptop",
-  "Investment": "trending-up",
-  "Gift": "gift",
-  "Transfer": "arrow-left-right",
-  "Other": "circle-dot",
+  Transport: "car",
+  Shopping: "shopping-bag",
+  Entertainment: "film",
+  Health: "heart-pulse",
+  Housing: "home",
+  Groceries: "shopping-cart",
+  Salary: "briefcase",
+  Freelance: "laptop",
+  Investment: "trending-up",
+  Gift: "gift",
+  Transfer: "arrow-left-right",
+  Other: "circle-dot",
 };
 
 interface AppContextType {
   workspace: Workspace;
   setWorkspace: (w: Workspace) => void;
+
   accounts: Account[];
   setAccounts: (a: Account[]) => void;
+
   transactions: Transaction[];
   setTransactions: (t: Transaction[]) => void;
+
   debts: Debt[];
   setDebts: (d: Debt[]) => void;
+
   credits: Credit[];
   setCredits: (c: Credit[]) => void;
+
   familyMembers: FamilyMember[];
   setFamilyMembers: (m: FamilyMember[]) => void;
+
   totalBalance: number;
   balanceCurrency: string;
   setBalanceCurrency: (c: string) => void;
+
   currency: string;
   notifications: Notification[];
+
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
   unreadCount: number;
+
   userName: string;
   setUserName: (n: string) => void;
+
   userEmail: string;
   setUserEmail: (e: string) => void;
+
   selectedCurrency: string;
   setSelectedCurrency: (c: string) => void;
+
+  language: "ru" | "uz";
+  setLanguage: (lang: "ru" | "uz") => void;
+  changeLanguage: (lang: "ru" | "uz") => void;
+
   darkMode: boolean;
   toggleDarkMode: () => void;
+
   familyEnabled: boolean;
   setFamilyEnabled: (v: boolean) => void;
+
   aiInsightEnabled: boolean;
   setAiInsightEnabled: (v: boolean) => void;
+
   exchangeRates: ExchangeRate[];
   isLoadingExchangeRates: boolean;
   isLoadingData: boolean;
+
   refreshData: () => Promise<void>;
   refreshExchangeRates: () => Promise<void>;
+
   selectedCardId: string | null;
   setSelectedCardId: (id: string | null) => void;
+
   selectedTransactionId: string | null;
   setSelectedTransactionId: (id: string | null) => void;
+
   addAccountModalOpen: boolean;
   setAddAccountModalOpen: (open: boolean) => void;
+
   addTransactionModalOpen: boolean;
   setAddTransactionModalOpen: (open: boolean) => void;
+
   addTransactionDefaultType: "expense" | "income" | "transfer";
   setAddTransactionDefaultType: (type: "expense" | "income" | "transfer") => void;
+
   resetFamilyData: () => void;
   deleteFamily: () => void;
   removeFamilyMember: (id: string) => void;
   toggleAccountInBalance: (id: string) => void;
+
   deleteTransaction: (id: string) => Promise<void>;
   deleteAccount: (id: string) => Promise<void>;
   updateTransaction: (tx: Transaction) => Promise<void>;
   updateAccount: (account: Account) => Promise<void>;
+
   addAccount: (account: Omit<Account, "id">) => Promise<Account>;
   addTransaction: (transaction: Omit<Transaction, "id">) => Promise<Transaction>;
 }
@@ -255,6 +283,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [userName, setUserName] = useState("Alex Johnson");
   const [userEmail, setUserEmail] = useState("alex@email.com");
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
+  const [language, setLanguageState] = useState<"ru" | "uz">(
+    (i18n.resolvedLanguage as "ru" | "uz") || "ru"
+  );
   const [balanceCurrency, setBalanceCurrency] = useState("all");
   const [darkMode, setDarkMode] = useState(true);
   const [familyEnabled, setFamilyEnabled] = useState(true);
@@ -270,6 +301,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   useEffect(() => {
+    const currentLang = (i18n.resolvedLanguage as "ru" | "uz") || "ru";
+    setLanguageState(currentLang);
+    document.documentElement.lang = currentLang;
+  }, []);
+
+  useEffect(() => {
     const loadData = async () => {
       try {
         const accounts = await api.accounts.getAllAccounts();
@@ -281,7 +318,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const debts = await api.debts.getAllDebts();
         setPersonalDebts(debts);
 
-        // Пока отдельного API для credits нет
         setPersonalCredits(personalCredits);
         setFamilyCredits(defaultFamilyCredits);
 
@@ -358,143 +394,123 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  const changeLanguage = useCallback((lang: "ru" | "uz") => {
+    i18n.changeLanguage(lang);
+    setLanguageState(lang);
+    document.documentElement.lang = lang;
+  }, []);
+
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
     document.documentElement.classList.toggle("dark");
   };
 
-  const toggleAccountInBalance = useCallback(
-    (id: string) => {
-      const updater = (accs: Account[]) =>
-        accs.map((a) => (a.id === id ? { ...a, includedInBalance: !a.includedInBalance } : a));
+  const toggleAccountInBalance = useCallback((id: string) => {
+    const updater = (accs: Account[]) =>
+      accs.map((a) => (a.id === id ? { ...a, includedInBalance: !a.includedInBalance } : a));
 
-      if (workspace === "personal") setPersonalAccs((prev) => updater(prev));
-      else setFamilyAccs((prev) => updater(prev));
-    },
-    [workspace]
-  );
+    if (workspace === "personal") setPersonalAccs((prev) => updater(prev));
+    else setFamilyAccs((prev) => updater(prev));
+  }, [workspace]);
 
-  const deleteTransaction = useCallback(
-    async (id: string) => {
-      try {
-        await api.transactions.deleteTransaction(id);
-      } catch (error) {
-        console.error("Error deleting transaction:", error);
-      }
+  const deleteTransaction = useCallback(async (id: string) => {
+    try {
+      await api.transactions.deleteTransaction(id);
+    } catch (error) {
+      console.error("Error deleting transaction:", error);
+    }
 
-      if (workspace === "personal") setPersonalTxs((prev) => prev.filter((t) => t.id !== id));
-      else setFamilyTxs((prev) => prev.filter((t) => t.id !== id));
-    },
-    [workspace]
-  );
+    if (workspace === "personal") setPersonalTxs((prev) => prev.filter((t) => t.id !== id));
+    else setFamilyTxs((prev) => prev.filter((t) => t.id !== id));
+  }, [workspace]);
 
-  const deleteAccount = useCallback(
-    async (id: string) => {
-      try {
-        await api.accounts.deleteAccount(id);
-      } catch (error) {
-        console.error("Error deleting account:", error);
-      }
+  const deleteAccount = useCallback(async (id: string) => {
+    try {
+      await api.accounts.deleteAccount(id);
+    } catch (error) {
+      console.error("Error deleting account:", error);
+    }
 
-      if (workspace === "personal") {
-        setPersonalTxs((prev) => prev.filter((t) => t.accountId !== id));
-        setPersonalAccs((prev) => prev.filter((a) => a.id !== id));
-      } else {
-        setFamilyTxs((prev) => prev.filter((t) => t.accountId !== id));
-        setFamilyAccs((prev) => prev.filter((a) => a.id !== id));
-      }
-    },
-    [workspace]
-  );
+    if (workspace === "personal") {
+      setPersonalTxs((prev) => prev.filter((t) => t.accountId !== id));
+      setPersonalAccs((prev) => prev.filter((a) => a.id !== id));
+    } else {
+      setFamilyTxs((prev) => prev.filter((t) => t.accountId !== id));
+      setFamilyAccs((prev) => prev.filter((a) => a.id !== id));
+    }
+  }, [workspace]);
 
-  const updateTransaction = useCallback(
-    async (tx: Transaction) => {
-      try {
-        await api.transactions.updateTransaction(tx.id, tx);
-      } catch (error) {
-        console.error("Error updating transaction:", error);
-      }
+  const updateTransaction = useCallback(async (tx: Transaction) => {
+    try {
+      await api.transactions.updateTransaction(tx.id, tx);
+    } catch (error) {
+      console.error("Error updating transaction:", error);
+    }
 
-      const updater = (txs: Transaction[]) => txs.map((t) => (t.id === tx.id ? tx : t));
+    const updater = (txs: Transaction[]) => txs.map((t) => (t.id === tx.id ? tx : t));
 
-      if (workspace === "personal") setPersonalTxs((prev) => updater(prev));
-      else setFamilyTxs((prev) => updater(prev));
-    },
-    [workspace]
-  );
+    if (workspace === "personal") setPersonalTxs((prev) => updater(prev));
+    else setFamilyTxs((prev) => updater(prev));
+  }, [workspace]);
 
-  const updateAccount = useCallback(
-    async (account: Account) => {
-      try {
-        await api.accounts.updateAccount(account.id, account);
-      } catch (error) {
-        console.error("Error updating account:", error);
-      }
+  const updateAccount = useCallback(async (account: Account) => {
+    try {
+      await api.accounts.updateAccount(account.id, account);
+    } catch (error) {
+      console.error("Error updating account:", error);
+    }
 
-      const updater = (accs: Account[]) => accs.map((a) => (a.id === account.id ? account : a));
+    const updater = (accs: Account[]) => accs.map((a) => (a.id === account.id ? account : a));
 
-      if (workspace === "personal") setPersonalAccs((prev) => updater(prev));
-      else setFamilyAccs((prev) => updater(prev));
-    },
-    [workspace]
-  );
+    if (workspace === "personal") setPersonalAccs((prev) => updater(prev));
+    else setFamilyAccs((prev) => updater(prev));
+  }, [workspace]);
 
-  const addAccount = useCallback(
-    async (account: Omit<Account, "id">) => {
-      console.log("Received account with color:", account.color);
+  const addAccount = useCallback(async (account: Omit<Account, "id">) => {
+    try {
+      const newAccount = await api.accounts.createAccount(account);
 
-      try {
-        const newAccount = await api.accounts.createAccount(account);
-        console.log("API returned account with color:", newAccount.color);
+      if (workspace === "personal") setPersonalAccs((prev) => [...prev, newAccount]);
+      else setFamilyAccs((prev) => [...prev, newAccount]);
 
-        if (workspace === "personal") setPersonalAccs((prev) => [...prev, newAccount]);
-        else setFamilyAccs((prev) => [...prev, newAccount]);
+      return newAccount;
+    } catch (error) {
+      console.error("Error creating account:", error);
 
-        return newAccount;
-      } catch (error) {
-        console.error("Error creating account:", error);
+      const fallbackAccount: Account = {
+        ...account,
+        id: Date.now().toString(),
+      };
 
-        const fallbackAccount: Account = {
-          ...account,
-          id: Date.now().toString(),
-        };
+      if (workspace === "personal") setPersonalAccs((prev) => [...prev, fallbackAccount]);
+      else setFamilyAccs((prev) => [...prev, fallbackAccount]);
 
-        console.log("Fallback account with color:", fallbackAccount.color);
+      return fallbackAccount;
+    }
+  }, [workspace]);
 
-        if (workspace === "personal") setPersonalAccs((prev) => [...prev, fallbackAccount]);
-        else setFamilyAccs((prev) => [...prev, fallbackAccount]);
+  const addTransaction = useCallback(async (transaction: Omit<Transaction, "id">) => {
+    try {
+      const newTransaction = await api.transactions.createTransaction(transaction);
 
-        return fallbackAccount;
-      }
-    },
-    [workspace]
-  );
+      if (workspace === "personal") setPersonalTxs((prev) => [...prev, newTransaction]);
+      else setFamilyTxs((prev) => [...prev, newTransaction]);
 
-  const addTransaction = useCallback(
-    async (transaction: Omit<Transaction, "id">) => {
-      try {
-        const newTransaction = await api.transactions.createTransaction(transaction);
+      return newTransaction;
+    } catch (error) {
+      console.error("Error creating transaction:", error);
 
-        if (workspace === "personal") setPersonalTxs((prev) => [...prev, newTransaction]);
-        else setFamilyTxs((prev) => [...prev, newTransaction]);
+      const fallbackTransaction: Transaction = {
+        ...transaction,
+        id: Date.now().toString(),
+      };
 
-        return newTransaction;
-      } catch (error) {
-        console.error("Error creating transaction:", error);
+      if (workspace === "personal") setPersonalTxs((prev) => [...prev, fallbackTransaction]);
+      else setFamilyTxs((prev) => [...prev, fallbackTransaction]);
 
-        const fallbackTransaction: Transaction = {
-          ...transaction,
-          id: Date.now().toString(),
-        };
-
-        if (workspace === "personal") setPersonalTxs((prev) => [...prev, fallbackTransaction]);
-        else setFamilyTxs((prev) => [...prev, fallbackTransaction]);
-
-        return fallbackTransaction;
-      }
-    },
-    [workspace]
-  );
+      return fallbackTransaction;
+    }
+  }, [workspace]);
 
   const resetFamilyData = useCallback(() => {
     setFamilyAccs(defaultFamilyAccounts);
@@ -588,6 +604,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setUserEmail,
         selectedCurrency,
         setSelectedCurrency,
+        language,
+        setLanguage: setLanguageState,
+        changeLanguage,
         darkMode,
         toggleDarkMode,
         familyEnabled,
