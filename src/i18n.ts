@@ -295,7 +295,8 @@ const resources = {
                     expense: "Расход",
                     income: "Доход",
                     transfer: "Перевод",
-                    debt: "Долг"
+                    debt: "Долг",
+                    budget: "Бюджет"
                 },
                 exchangeRates: {
                     title: "Курсы валют",
@@ -632,7 +633,8 @@ const resources = {
                     expense: "Xarajat",
                     income: "Daromad",
                     transfer: "O‘tkazma",
-                    debt: "Qarz"
+                    debt: "Qarz",
+                    budget: "Budjet"
                 },
                 exchangeRates: {
                     title: "Valyuta kurslari",

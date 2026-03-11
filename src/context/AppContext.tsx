@@ -7,7 +7,7 @@ import {
   mockDebts,
   mockNotifications,
   mockFamilyMembers,
-  mockExchangeRates
+  mockExchangeRates,
 } from "../api/mockData";
 
 export type Workspace = "personal" | "family";
@@ -90,6 +90,29 @@ export interface ExchangeRate {
   from: string;
   to: string;
   rate: number;
+}
+
+export interface BudgetPlan {
+  id: string;
+  month: string; // YYYY-MM
+  workspace: Workspace;
+  currency: string;
+  plannedIncome: number;
+  plannedExpense: number;
+}
+
+export interface BudgetIncomePlanItem {
+  id: string;
+  budgetPlanId: string;
+  category: string;
+  plannedAmount: number;
+}
+
+export interface BudgetCategoryLimit {
+  id: string;
+  budgetPlanId: string;
+  category: string;
+  limitAmount: number;
 }
 
 export const categoryIcons: Record<string, string> = {
@@ -194,6 +217,15 @@ interface AppContextType {
 
   addAccount: (account: Omit<Account, "id">) => Promise<Account>;
   addTransaction: (transaction: Omit<Transaction, "id">) => Promise<Transaction>;
+
+  budgetPlans: BudgetPlan[];
+  setBudgetPlans: (plans: BudgetPlan[]) => void;
+
+  budgetIncomePlanItems: BudgetIncomePlanItem[];
+  setBudgetIncomePlanItems: (items: BudgetIncomePlanItem[]) => void;
+
+  budgetCategoryLimits: BudgetCategoryLimit[];
+  setBudgetCategoryLimits: (items: BudgetCategoryLimit[]) => void;
 }
 
 const personalAccounts: Account[] = [
@@ -267,6 +299,47 @@ const initialNotifications: Notification[] = [
   { id: "n5", title: "Transfer Complete", message: "Transfer of $500 from Visa Platinum to Savings Account completed.", date: "2026-02-23", read: true, type: "success" },
 ];
 
+const defaultBudgetPlans: BudgetPlan[] = [
+  {
+    id: "bp1",
+    month: "2026-02",
+    workspace: "personal",
+    currency: "USD",
+    plannedIncome: 4000,
+    plannedExpense: 1200,
+  },
+  {
+    id: "bp2",
+    month: "2026-02",
+    workspace: "family",
+    currency: "USD",
+    plannedIncome: 8000,
+    plannedExpense: 2500,
+  },
+];
+
+const defaultBudgetIncomePlanItems: BudgetIncomePlanItem[] = [
+  { id: "bpi1", budgetPlanId: "bp1", category: "Salary", plannedAmount: 3500 },
+  { id: "bpi2", budgetPlanId: "bp1", category: "Freelance", plannedAmount: 400 },
+  { id: "bpi3", budgetPlanId: "bp1", category: "Other", plannedAmount: 100 },
+
+  { id: "bpi4", budgetPlanId: "bp2", category: "Salary", plannedAmount: 7000 },
+  { id: "bpi5", budgetPlanId: "bp2", category: "Other", plannedAmount: 1000 },
+];
+
+const defaultBudgetCategoryLimits: BudgetCategoryLimit[] = [
+  { id: "bcl1", budgetPlanId: "bp1", category: "Food & Dining", limitAmount: 300 },
+  { id: "bcl2", budgetPlanId: "bp1", category: "Transport", limitAmount: 120 },
+  { id: "bcl3", budgetPlanId: "bp1", category: "Shopping", limitAmount: 250 },
+  { id: "bcl4", budgetPlanId: "bp1", category: "Entertainment", limitAmount: 100 },
+  { id: "bcl5", budgetPlanId: "bp1", category: "Health", limitAmount: 80 },
+  { id: "bcl6", budgetPlanId: "bp1", category: "Housing", limitAmount: 350 },
+
+  { id: "bcl7", budgetPlanId: "bp2", category: "Groceries", limitAmount: 500 },
+  { id: "bcl8", budgetPlanId: "bp2", category: "Housing", limitAmount: 1500 },
+  { id: "bcl9", budgetPlanId: "bp2", category: "Transport", limitAmount: 200 },
+];
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
@@ -299,6 +372,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [exchangeRatesState, setExchangeRates] = useState<ExchangeRate[]>([]);
   const [isLoadingExchangeRates, setIsLoadingExchangeRates] = useState(true);
   const [isLoadingData, setIsLoadingData] = useState(true);
+
+  const [budgetPlans, setBudgetPlans] = useState<BudgetPlan[]>(defaultBudgetPlans);
+  const [budgetIncomePlanItems, setBudgetIncomePlanItems] =
+    useState<BudgetIncomePlanItem[]>(defaultBudgetIncomePlanItems);
+  const [budgetCategoryLimits, setBudgetCategoryLimits] =
+    useState<BudgetCategoryLimit[]>(defaultBudgetCategoryLimits);
 
   useEffect(() => {
     const currentLang = (i18n.resolvedLanguage as "ru" | "uz") || "ru";
@@ -638,6 +717,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         updateAccount,
         addAccount,
         addTransaction,
+        budgetPlans,
+        setBudgetPlans,
+        budgetIncomePlanItems,
+        setBudgetIncomePlanItems,
+        budgetCategoryLimits,
+        setBudgetCategoryLimits,
       }}
     >
       {children}
