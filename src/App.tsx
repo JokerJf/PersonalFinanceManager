@@ -15,7 +15,7 @@ import Debts from "./pages/Debts";
 import ExchangeRates from "./pages/ExchangeRates";
 import ChatBot from "./pages/ChatBot";
 import NotFound from "./pages/NotFound";
-
+import Budget from "./pages/Budget";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -31,6 +31,7 @@ const App = () => (
               <Route path="/accounts" element={<Accounts />} />
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/analytics" element={<Analytics />} />
+              <Route path="/budget" element={<Budget />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/debts" element={<Debts />} />
               <Route path="/exchange" element={<ExchangeRates />} />

@@ -19,6 +19,7 @@ import {
   DollarSign,
   MessageCircle,
   Repeat,
+  Calculator,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -223,6 +224,13 @@ const Dashboard = () => {
       color: "text-warning",
       action: () => navigate("/debts"),
     },
+    {
+      icon: Calculator,
+      label: t("dashboard.quickActions.budget"),
+      bgColor: "bg-indigo-500/10",
+      color: "text-indigo-500",
+      action: () => navigate("/budget"),
+    },
   ];
 
   const handleCardClick = (id: string) => {
@@ -243,12 +251,12 @@ const Dashboard = () => {
     displayCurrency === "UZS"
       ? ""
       : displayCurrency === "EUR"
-      ? "€"
-      : displayCurrency === "GBP"
-      ? "£"
-      : displayCurrency === "RUB"
-      ? "₽"
-      : "$";
+        ? "€"
+        : displayCurrency === "GBP"
+          ? "£"
+          : displayCurrency === "RUB"
+            ? "₽"
+            : "$";
 
   const formatBalance = (val: number) => {
     if (displayCurrency === "UZS") return `${val.toLocaleString("en-US")} ${t("shared.uzs")}`;
@@ -346,9 +354,8 @@ const Dashboard = () => {
             </div>
 
             <p
-              className={`text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight mb-1 sm:mb-2 transition-all duration-300 ${
-                isAnimating ? "scale-105 opacity-50" : "scale-100 opacity-100"
-              }`}
+              className={`text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight mb-1 sm:mb-2 transition-all duration-300 ${isAnimating ? "scale-105 opacity-50" : "scale-100 opacity-100"
+                }`}
             >
               {isLoadingExchangeRates ? (
                 <span className="text-muted-foreground">{t("shared.loading")}</span>
@@ -434,9 +441,8 @@ const Dashboard = () => {
               {cards.map((_, i) => (
                 <div
                   key={i}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    i === activeCard ? "w-6 bg-primary" : "w-1.5 bg-muted-foreground/30"
-                  }`}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${i === activeCard ? "w-6 bg-primary" : "w-1.5 bg-muted-foreground/30"
+                    }`}
                 />
               ))}
             </div>
@@ -458,7 +464,7 @@ const Dashboard = () => {
       ) : (
         <div>
           <h2 className="section-title mb-2 sm:mb-3">{t("dashboard.quickActions.title")}</h2>
-          <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 sm:gap-2">
             {quickActions.map((action) => (
               <button
                 key={action.label}
@@ -577,13 +583,12 @@ const Dashboard = () => {
                   </p>
                 </div>
                 <p
-                  className={`text-sm font-semibold flex-shrink-0 ${
-                    tx.type === "income"
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : tx.type === "expense"
+                  className={`text-sm font-semibold flex-shrink-0 ${tx.type === "income"
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : tx.type === "expense"
                       ? "text-rose-600 dark:text-rose-400"
                       : "text-indigo-600 dark:text-indigo-400"
-                  }`}
+                    }`}
                 >
                   {formatTransactionAmount(tx)}
                 </p>
