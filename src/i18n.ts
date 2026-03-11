@@ -12,7 +12,14 @@ const resources = {
                 delete: "Удалить",
                 reset: "Сбросить",
             },
-
+            shared: {
+                seeAll: "Смотреть все",
+                loading: "Загрузка...",
+                uzs: "сум",
+                cancel: "Отмена",
+                delete: "Удалить",
+                reset: "Сбросить"
+            },
             settings: {
                 title: "Настройки",
                 logout: "Выйти",
@@ -233,25 +240,94 @@ const resources = {
             },
             accounts: {
                 title: "Счета",
-                addAccount: "Добавить счёт",
-                noAccounts: "Пока нет счетов",
-                cash: "Наличные",
-                bank: "Банк",
-                card: "Карта",
-                included: "Включён в баланс",
-                excluded: "Исключён из баланса"
+                cardsSection: "Карты",
+                otherAccountsSection: "Другие счета",
+                addNewAccount: "Добавить новый счёт",
+                currency: {
+                    uzs: "сум"
+                },
+                types: {
+                    card: "карта",
+                    cash: "наличные",
+                    bank: "банк"
+                },
+                toasts: {
+                    accountAdded: {
+                        title: "Счёт добавлен",
+                        description: "{{name}} был создан."
+                    },
+                    copied: {
+                        title: "Скопировано",
+                        description: "Номер карты скопирован в буфер обмена."
+                    }
+                }
+            },
+            accountForm: {
+                title: "Добавить счёт",
+                accountName: "Название счёта",
+                type: "Тип",
+                currency: "Валюта",
+                cardNetwork: "Платёжная система",
+                cardNumber: "Номер карты",
+                expiryDate: "Срок действия",
+                cardStyle: "Стиль карты",
+                initialBalance: "Начальный баланс",
+                includeInBalance: "Включать в баланс",
+                add: "Добавить счёт",
+                placeholders: {
+                    accountName: "Например, моя Visa карта",
+                    cardNumber: "0000 0000 0000 0000",
+                    expiryDate: "MM/YY",
+                    balance: "0.00"
+                }
             },
             dashboard: {
-                title: "Главная",
+                brand: "FinWallet",
                 totalBalance: "Общий баланс",
-                recentTransactions: "Последние транзакции",
-                quickActions: "Быстрые действия"
+                tapToSwitch: "Нажмите для смены",
+                accountsCount_one: "{{count}} счёт",
+                accountsCount_few: "{{count}} счёта",
+                accountsCount_many: "{{count}} счетов",
+                accountsCount_other: "{{count}} счетов",
+                myCards: "Мои карты",
+                quickActions: {
+                    title: "Быстрые действия",
+                    expense: "Расход",
+                    income: "Доход",
+                    transfer: "Перевод",
+                    debt: "Долг"
+                },
+                exchangeRates: {
+                    title: "Курсы валют",
+                    subtitle: "Конвертер валют"
+                },
+                aiAssistant: {
+                    title: "AI помощник",
+                    subtitle: "Спроси что угодно"
+                },
+                aiInsight: {
+                    title: "AI Insight",
+                    description: "В этом месяце вы потратили на 20% больше на еду по сравнению с прошлым месяцем. Попробуйте установить лимит бюджета."
+                },
+                recentTransactions: {
+                    title: "Последние транзакции"
+                }
             },
             analytics: {
                 title: "Аналитика",
-                incomeVsExpense: "Доходы и расходы",
-                spendingByCategory: "Расходы по категориям",
-                noData: "Недостаточно данных"
+                income: "Доход",
+                expense: "Расход",
+                balance: "Баланс",
+                incomeVsExpense: "Доходы vs Расходы",
+                byCategory: "Расходы по категориям",
+                balanceTrend: "Динамика баланса",
+                noData: "Недостаточно данных",
+                period: {
+                    day: "День",
+                    week: "Неделя",
+                    month: "Месяц",
+                    year: "Год"
+                }
             },
             exchangeRates: {
                 title: "Курсы валют",
@@ -278,6 +354,14 @@ const resources = {
                 cancel: "Bekor qilish",
                 delete: "O‘chirish",
                 reset: "Tiklash",
+            },
+            shared: {
+                seeAll: "Hammasi",
+                loading: "Yuklanmoqda...",
+                uzs: "so‘m",
+                cancel: "Bekor qilish",
+                delete: "O‘chirish",
+                reset: "Tiklash"
             },
             settings: {
                 title: "Sozlamalar",
@@ -496,25 +580,91 @@ const resources = {
             },
             accounts: {
                 title: "Hisoblar",
-                addAccount: "Hisob qo‘shish",
-                noAccounts: "Hozircha hisoblar yo‘q",
-                cash: "Naqd pul",
-                bank: "Bank",
-                card: "Karta",
-                included: "Balansga kiritilgan",
-                excluded: "Balansdan chiqarilgan"
+                cardsSection: "Kartalar",
+                otherAccountsSection: "Boshqa hisoblar",
+                addNewAccount: "Yangi hisob qo‘shish",
+                currency: {
+                    uzs: "so‘m"
+                },
+                types: {
+                    card: "karta",
+                    cash: "naqd pul",
+                    bank: "bank"
+                },
+                toasts: {
+                    accountAdded: {
+                        title: "Hisob qo‘shildi",
+                        description: "{{name}} yaratildi."
+                    },
+                    copied: {
+                        title: "Nusxa olindi",
+                        description: "Karta raqami clipboard ga nusxalandi."
+                    }
+                }
+            },
+            accountForm: {
+                title: "Hisob qo‘shish",
+                accountName: "Hisob nomi",
+                type: "Turi",
+                currency: "Valyuta",
+                cardNetwork: "To‘lov tizimi",
+                cardNumber: "Karta raqami",
+                expiryDate: "Amal qilish muddati",
+                cardStyle: "Karta uslubi",
+                initialBalance: "Boshlang‘ich balans",
+                includeInBalance: "Balansga kiritilsin",
+                add: "Hisob qo‘shish",
+                placeholders: {
+                    accountName: "Masalan, mening Visa kartam",
+                    cardNumber: "0000 0000 0000 0000",
+                    expiryDate: "MM/YY",
+                    balance: "0.00"
+                }
             },
             dashboard: {
-                title: "Bosh sahifa",
+                brand: "FinWallet",
                 totalBalance: "Umumiy balans",
-                recentTransactions: "So‘nggi tranzaksiyalar",
-                quickActions: "Tezkor amallar"
+                tapToSwitch: "Almashtirish uchun bosing",
+                accountsCount: "{{count}} hisob",
+                myCards: "Mening kartalarim",
+                quickActions: {
+                    title: "Tezkor amallar",
+                    expense: "Xarajat",
+                    income: "Daromad",
+                    transfer: "O‘tkazma",
+                    debt: "Qarz"
+                },
+                exchangeRates: {
+                    title: "Valyuta kurslari",
+                    subtitle: "Valyuta konvertori"
+                },
+                aiAssistant: {
+                    title: "AI yordamchi",
+                    subtitle: "Istalgan narsani so‘rang"
+                },
+                aiInsight: {
+                    title: "AI Insight",
+                    description: "Bu oy siz o‘tgan oyga nisbatan ovqatga 20% ko‘proq sarfladingiz. Budjet limiti qo‘yishni o‘ylab ko‘ring."
+                },
+                recentTransactions: {
+                    title: "So‘nggi tranzaksiyalar"
+                }
             },
             analytics: {
-                title: "Tahlil",
-                incomeVsExpense: "Daromad va xarajatlar",
-                spendingByCategory: "Kategoriya bo‘yicha xarajatlar",
-                noData: "Ma’lumot yetarli emas"
+                title: "Analitika",
+                income: "Daromad",
+                expense: "Xarajat",
+                balance: "Balans",
+                incomeVsExpense: "Daromad va Xarajat",
+                byCategory: "Kategoriya bo‘yicha xarajatlar",
+                balanceTrend: "Balans dinamikasi",
+                noData: "Ma’lumot yetarli emas",
+                period: {
+                    day: "Kun",
+                    week: "Hafta",
+                    month: "Oy",
+                    year: "Yil"
+                }
             },
             exchangeRates: {
                 title: "Valyuta kurslari",
@@ -528,7 +678,8 @@ const resources = {
                 placeholder: "Xabar yozing...",
                 send: "Yuborish",
                 empty: "Yordamchiga savol bering"
-            }
+            },
+
         },
     },
 };

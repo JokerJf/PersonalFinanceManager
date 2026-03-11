@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useApp, Account } from "@/context/AppContext";
 import CardView from "@/components/CardView";
 import AddAccountModal from "@/components/AddAccountModal";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CreditCard, Banknote, Landmark, Plus, ChevronRight, Copy, Check } from "lucide-react";
+import { CreditCard, Banknote, Landmark, Plus, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 const iconMap = { card: CreditCard, cash: Banknote, bank: Landmark };
@@ -17,13 +18,21 @@ const networkColors: Record<string, string> = {
 };
 
 const Accounts = () => {
-  const { accounts, addAccount, setSelectedCardId, toggleAccountInBalance, isLoadingData, refreshData } = useApp();
+  const { t } = useTranslation();
+
+  const {
+    accounts,
+    addAccount,
+    setSelectedCardId,
+    toggleAccountInBalance,
+    isLoadingData,
+    refreshData,
+  } = useApp();
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [revealedCards, setRevealedCards] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // При монтировании страницы обновляем данные с сервера
-  // Это вызовет скелетную загрузку пока данные загружаются
   useEffect(() => {
     refreshData();
   }, []);
@@ -32,16 +41,22 @@ const Accounts = () => {
     setSelectedCardId(acc.id);
   };
 
-  const handleAdd = async (account: Omit<Account, 'id'>) => {
-    // Создаем новый счет с помощью API
+  const handleAdd = async (account: Omit<Account, "id">) => {
     await addAccount(account);
-    toast({ title: "Account Added", description: `${account.name} has been created.` });
+
+    toast({
+      title: t("accounts.toasts.accountAdded.title"),
+      description: t("accounts.toasts.accountAdded.description", {
+        name: account.name,
+      }),
+    });
   };
 
   const toggleReveal = (id: string) => {
-    setRevealedCards(prev => {
+    setRevealedCards((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -51,23 +66,48 @@ const Accounts = () => {
     navigator.clipboard.writeText(num.replace(/\s/g, ""));
     setCopiedId(acc.id);
     setTimeout(() => setCopiedId(null), 2000);
-    toast({ title: "Copied", description: "Card number copied to clipboard." });
+
+    toast({
+      title: t("accounts.toasts.copied.title"),
+      description: t("accounts.toasts.copied.description"),
+    });
   };
 
-  const cards = accounts.filter(a => a.type === "card");
+  const formatMoney = (acc: Account) => {
+    if (acc.currency === "UZS") {
+      return `${acc.balance.toLocaleString("en-US")} ${t("accounts.currency.uzs")}`;
+    }
+
+    return `${acc.balance.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+    })}`;
+  };
+
+  const getAccountTypeLabel = (type: Account["type"]) => {
+    if (type === "card") return t("accounts.types.card");
+    if (type === "cash") return t("accounts.types.cash");
+    return t("accounts.types.bank");
+  };
+
+  const cards = accounts.filter((a) => a.type === "card");
+  const otherAccounts = accounts.filter((a) => a.type !== "card");
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Accounts</h1>
+        <h1 className="text-xl font-bold">{t("accounts.title")}</h1>
+
         {!isLoadingData && (
-          <button onClick={() => setShowAddModal(true)} className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground"
+          >
             <Plus size={18} />
           </button>
         )}
       </div>
 
-      {/* Cards - horizontal scroll full width */}
+      {/* Cards */}
       {isLoadingData ? (
         <div>
           <Skeleton className="h-6 w-20 mb-3" />
@@ -77,7 +117,7 @@ const Accounts = () => {
         </div>
       ) : cards.length > 0 ? (
         <div>
-          <h2 className="section-title mb-3">Cards</h2>
+          <h2 className="section-title mb-3">{t("accounts.cardsSection")}</h2>
           <div className="flex gap-3 overflow-x-auto pb-6 -mx-4 px-4 scrollbar-hide snap-x snap-mandatory">
             {cards.map((acc) => (
               <div
@@ -85,7 +125,7 @@ const Accounts = () => {
                 className="flex-shrink-0 w-[calc(100vw-2rem)] max-w-[400px] snap-center cursor-pointer"
                 onClick={() => handleCardClick(acc)}
               >
-                <CardView 
+                <CardView
                   account={acc}
                   revealed={revealedCards.has(acc.id)}
                   onToggleReveal={() => toggleReveal(acc.id)}
@@ -107,47 +147,58 @@ const Accounts = () => {
             <Skeleton className="h-20 w-full rounded-2xl" />
           </div>
         </div>
-      ) : accounts.filter(a => a.type !== "card").length > 0 && (
+      ) : otherAccounts.length > 0 ? (
         <div>
-          <h2 className="section-title mb-3">Other Accounts</h2>
+          <h2 className="section-title mb-3">{t("accounts.otherAccountsSection")}</h2>
           <div className="space-y-3">
-            {accounts.filter(a => a.type !== "card").map((acc) => {
+            {otherAccounts.map((acc) => {
               const Icon = iconMap[acc.type];
+
               return (
-                <div key={acc.id} onClick={() => handleCardClick(acc)} className="rounded-2xl border border-border/30 flex items-center gap-3 py-3 cursor-pointer active:scale-[0.98] transition-transform px-4 dark:bg-[rgba(28,32,44,0.3)] bg-white shadow-sm">
+                <div
+                  key={acc.id}
+                  onClick={() => handleCardClick(acc)}
+                  className="rounded-2xl border border-border/30 flex items-center gap-3 py-3 cursor-pointer active:scale-[0.98] transition-transform px-4 dark:bg-[rgba(28,32,44,0.3)] bg-white shadow-sm"
+                >
                   <div className="w-12 h-12 rounded-2xl card-bg flex items-center justify-center text-slate-900 dark:text-white">
                     <Icon size={22} />
                   </div>
+
                   <div className="flex-1">
                     <p className="font-semibold text-sm">{acc.name}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{acc.type} · {acc.currency}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-sm">
-                      {acc.currency === "UZS" ? `${acc.balance.toLocaleString("en-US")} сум` : `${acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {getAccountTypeLabel(acc.type)} · {acc.currency}
                     </p>
                   </div>
+
+                  <div className="text-right">
+                    <p className="font-bold text-sm">{formatMoney(acc)}</p>
+                  </div>
+
                   <ChevronRight size={16} className="text-muted-foreground" />
                 </div>
               );
             })}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Add Account Button */}
       {!isLoadingData && (
-        <button onClick={() => setShowAddModal(true)} className="w-full fintech-card border-2 border-dashed border-border flex items-center justify-center gap-2 py-6 text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors">
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="w-full fintech-card border-2 border-dashed border-border flex items-center justify-center gap-2 py-6 text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+        >
           <Plus size={20} />
-          <span className="text-sm font-medium">Add New Account</span>
+          <span className="text-sm font-medium">{t("accounts.addNewAccount")}</span>
         </button>
       )}
 
       {/* Add Account Modal */}
-      <AddAccountModal 
-        open={showAddModal} 
-        onOpenChange={setShowAddModal} 
-        onAdd={handleAdd} 
+      <AddAccountModal
+        open={showAddModal}
+        onOpenChange={setShowAddModal}
+        onAdd={handleAdd}
       />
     </div>
   );
