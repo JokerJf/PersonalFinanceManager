@@ -331,10 +331,10 @@ const resources = {
             },
             exchangeRates: {
                 title: "Курсы валют",
-                refresh: "Обновить",
                 from: "Из",
                 to: "В",
-                rate: "Курс"
+                ratesFor: "Курсы для",
+                disclaimer: "Курсы примерные и приведены только для демонстрации."
             },
             chatbot: {
                 title: "AI помощник",
@@ -668,10 +668,10 @@ const resources = {
             },
             exchangeRates: {
                 title: "Valyuta kurslari",
-                refresh: "Yangilash",
                 from: "Dan",
                 to: "Ga",
-                rate: "Kurs"
+                ratesFor: "Kurslar",
+                disclaimer: "Kurslar taxminiy bo‘lib, faqat namoyish uchun berilgan."
             },
             chatbot: {
                 title: "AI yordamchi",
@@ -679,6 +679,7 @@ const resources = {
                 send: "Yuborish",
                 empty: "Yordamchiga savol bering"
             },
+
 
         },
     },
